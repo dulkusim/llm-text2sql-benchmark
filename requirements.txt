@@ -1,0 +1,9 @@
+sqlalchemy
+sqlparse
+pandas
+psutil
+pytest
+openai
+requests
+numpy
+matplotlib
