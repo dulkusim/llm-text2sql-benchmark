@@ -1,11 +1,13 @@
 import sqlite3
 import os
 
-# ensure the db folder exists
-os.makedirs("db", exist_ok=True)
+# Get the absolute path to the directory where this script lives
+base_dir = os.path.dirname(os.path.abspath(__file__)) 
 
-# connect (this automatically creates the file if it doesn’t exist)
-conn = sqlite3.connect("./sqlite_text2sql.db")
+# Create the db file in that same directory
+db_path = os.path.join(base_dir, "sqlite_text2sql.db")
+
+conn = sqlite3.connect(db_path)
 
 # create a simple test table
 conn.execute("CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY, name TEXT)")
