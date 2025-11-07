@@ -2,6 +2,5 @@
 __pycache__/
 *.pyc
 results/
-data/
 .env
 db/sqlite_text2sql.db
