@@ -4,3 +4,4 @@ __pycache__/
 results/
 .env
 db/sqlite_text2sql.db
+data/spider_data/spider_data/database/
