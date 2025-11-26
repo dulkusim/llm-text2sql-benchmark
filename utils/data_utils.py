@@ -106,8 +106,23 @@ def load_questions(dataset_name="spider"):
     return question_set
 
 if __name__ == "__main__":
-    # Test the fix
-    qs = load_questions("atis")
-    if qs:
-        print("\n--- Sample ATIS Query (Fixed) ---")
-        print(qs[0]['ground_truth_query'])
+    # --- Test this script with ALL datasets ---
+    datasets_to_test = ["spider", "atis", "geography"]
+    
+    for ds in datasets_to_test:
+        print(f"\n--- Loading {ds.upper()} ---")
+        qs = load_questions(ds)
+        if qs:
+            # Calculate stats
+            levels = [q['complexity'] for q in qs]
+            counts = {
+                "Easy": levels.count("Easy"),
+                "Medium": levels.count("Medium"),
+                "Hard": levels.count("Hard"),
+                "Extra Hard": levels.count("Extra Hard")
+            }
+            print(f"Total: {len(qs)}")
+            print(f"Complexity: {counts}")
+            
+            # Show a sample to verify quotes are fixed (look for single quotes ')
+            print(f"Sample SQL: {qs[0]['ground_truth_query']}")
