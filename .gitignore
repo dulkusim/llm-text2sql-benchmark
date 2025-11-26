@@ -3,4 +3,18 @@ __pycache__/
 *.pyc
 results/
 .env
+
+# --- Database Files ---
+# Ignore the specific project database
 db/sqlite_text2sql.db
+# Ignore all SQLite databases anywhere in the project
+*.sqlite
+*.db
+
+# --- Data Directories ---
+# Ignore the folder containing the downloaded datasets
+data/
+
+# Optional: If you want to keep the empty 'data' folder structure in Git,
+# but ignore its contents, uncomment the line below:
+# !data/.gitkeep
