@@ -18,3 +18,5 @@ data/
 # Optional: If you want to keep the empty 'data' folder structure in Git,
 # but ignore its contents, uncomment the line below:
 # !data/.gitkeep
+
+.DS_Store
