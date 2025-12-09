@@ -8,3 +8,7 @@ requests
 numpy
 matplotlib
 psycopg2-binary
+transformers
+torch
+accelerate
+bitsandbytes
