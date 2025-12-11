@@ -144,3 +144,57 @@ SQL:
             sql_part = sql_part.split(";")[0] + ";"
 
         return self._clean_sql(sql_part)
+
+class Qwen2Wrapper(LLMWrapper):
+    def __init__(self, model_name="Qwen/Qwen2.5-7B-Instruct"):
+        super().__init__(model_name)
+
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            dtype=torch.float16 if self.device == "cuda" else torch.float32,
+            device_map="auto",
+            load_in_4bit=True,          # 🔥 4-bit quantization
+            torch_dtype=torch.float16,  # mixed precision
+        ).to(self.device)
+
+        # Qwen expects an EOS token for controlled decoding
+        self.eos = self.tokenizer.eos_token_id
+
+    def generate_sql(self, question, schema):
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are an expert SQL generator. "
+                    "Given a database schema and a natural language question, "
+                    "output ONLY the SQL query. Do not explain."
+                )
+            },
+            {
+                "role": "user",
+                "content": f"Schema:\n{schema}\n\nQuestion: {question}"
+            }
+        ]
+
+        # Qwen uses ChatML prompt format
+        input_ids = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=True,
+            add_generation_prompt=True,
+            return_tensors="pt"
+        ).to(self.device)
+
+        outputs = self.model.generate(
+            input_ids=input_ids,
+            max_new_tokens=120,
+            do_sample=False,         # deterministic output
+            eos_token_id=self.eos,   # stop at EOS
+        )
+
+        # Slice off the prompt
+        generated = outputs[0][input_ids.shape[-1]:]
+
+        text = self.tokenizer.decode(generated, skip_special_tokens=True)
+
+        return self._clean_sql(text)

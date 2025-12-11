@@ -1,7 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-from agent.model_wrappers import TinyLlamaWrapper, GPT2Wrapper
+from agent.model_wrappers import TinyLlamaWrapper, GPT2Wrapper, Qwen2Wrapper
 
 def test():
     # A simple schema for testing
@@ -27,6 +27,17 @@ def test():
         print(f"✅ OUTPUT: {gpt.generate_sql(question, schema)}")
     except Exception as e:
         print(f"❌ FAILED: {e}")
+
+    print("\n" + "="*40)
+    print("🤖 MODEL TEST 3: Qwen2.5-7B-Instruct")
+    print("="*40)
+    try:
+        qwen = Qwen2Wrapper()
+        print(f"👉 INPUT: {question}")
+        print(f"✅ OUTPUT: {qwen.generate_sql(question, schema)}")
+    except Exception as e:
+        print(f"❌ FAILED: {e}")
+
 
 if __name__ == "__main__":
     test()
