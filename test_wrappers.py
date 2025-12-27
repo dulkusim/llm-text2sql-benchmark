@@ -29,7 +29,7 @@ def test():
         print(f"❌ FAILED: {e}")
 
     print("\n" + "="*40)
-    print("🤖 MODEL TEST 3: Qwen2.5-7B-Instruct")
+    print("🤖 MODEL TEST 3: Qwen2.5-1.5B-Instruct")
     print("="*40)
     try:
         qwen = Qwen2Wrapper()
