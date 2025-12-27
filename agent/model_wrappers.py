@@ -146,7 +146,7 @@ SQL:
         return self._clean_sql(sql_part)
 
 class Qwen2Wrapper(LLMWrapper):
-    def __init__(self, model_name="Qwen/Qwen2.5-7B-Instruct"):
+    def __init__(self, model_name="Qwen/Qwen2.5-1.5B-Instruct"):
         super().__init__(model_name)
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
