@@ -1,0 +1,515 @@
+model,dataset,db_id,question_id,complexity,question,ground_truth_sql,generated_sql,gt_exec_success,pred_exec_success_pg,pred_exec_success_sqlite,is_correct,generation_time
+Qwen2.5-1.5B,custom,custom,custom_0,Easy,List all products in the Electronics category.,SELECT product_name FROM products WHERE category = 'Electronics',SELECT product_name FROM products WHERE category = 'Electronics',TRUE,TRUE,TRUE,TRUE,0.9955
+Qwen2.5-1.5B,custom,custom,custom_1,Easy,What is the price of the product with ID 3?,SELECT price FROM products WHERE product_id = 3,SELECT price FROM products WHERE product_id = 3;,TRUE,TRUE,TRUE,TRUE,0.4797
+Qwen2.5-1.5B,custom,custom,custom_2,Easy,What is the price of the product with ID 10?,SELECT price FROM products WHERE product_id = 10,SELECT T2.price FROM products AS T1 JOIN order_items AS T3 ON T1.product_id = T3.product_id WHERE T3.order_id IN (SELECT order_id FROM orders WHERE customer_id IN (SELECT customer_id FROM customers WHERE email = 'example@example.com')) AND T1.product_id = 10,TRUE,FALSE,FALSE,FALSE,2.5467
+Qwen2.5-1.5B,custom,custom,custom_3,Easy,List all products in the Electronics category.,SELECT product_name FROM products WHERE category = 'Electronics',SELECT product_name FROM products WHERE category = 'Electronics',TRUE,TRUE,TRUE,TRUE,0.7385
+Qwen2.5-1.5B,custom,custom,custom_4,Easy,List all products in the Books category.,SELECT product_name FROM products WHERE category = 'Books',SELECT product_name FROM products WHERE category = 'Books',TRUE,TRUE,TRUE,TRUE,0.5937
+Qwen2.5-1.5B,custom,custom,custom_5,Easy,List all products in the Electronics category.,SELECT product_name FROM products WHERE category = 'Electronics',SELECT product_name FROM products WHERE category = 'Electronics',TRUE,TRUE,TRUE,TRUE,0.7005
+Qwen2.5-1.5B,custom,custom,custom_6,Easy,What is the price of the product with ID 6?,SELECT price FROM products WHERE product_id = 6,"SELECT T1.price 
+FROM products AS T1 
+JOIN order_items AS T3 ON T1.product_id = T3.product_id 
+WHERE T3.product_id = 6;",TRUE,TRUE,TRUE,FALSE,1.3479
+Qwen2.5-1.5B,custom,custom,custom_7,Easy,What is the price of the product with ID 6?,SELECT price FROM products WHERE product_id = 6,"SELECT T1.price 
+FROM products AS T1 
+JOIN order_items AS T3 ON T1.product_id = T3.product_id 
+WHERE T3.product_id = 6;",TRUE,TRUE,TRUE,FALSE,1.3495
+Qwen2.5-1.5B,custom,custom,custom_8,Easy,List all products in the Electronics category.,SELECT product_name FROM products WHERE category = 'Electronics',SELECT product_name FROM products WHERE category = 'Electronics',TRUE,TRUE,TRUE,TRUE,0.4981
+Qwen2.5-1.5B,custom,custom,custom_9,Easy,How many customers live in Paris?,SELECT count(*) FROM customers WHERE city = 'Paris',SELECT COUNT(DISTINCT T1.customer_id) AS num_customers FROM customers AS T1 JOIN orders AS T2 ON T1.customer_id = T2.customer_id WHERE T1.city = 'Paris',TRUE,TRUE,TRUE,FALSE,1.6614
+Qwen2.5-1.5B,custom,custom,custom_10,Easy,List all products in the Electronics category.,SELECT product_name FROM products WHERE category = 'Electronics',SELECT product_name FROM products WHERE category = 'Electronics',TRUE,TRUE,TRUE,TRUE,0.5079
+Qwen2.5-1.5B,custom,custom,custom_11,Easy,List all products in the Clothing category.,SELECT product_name FROM products WHERE category = 'Clothing',"SELECT DISTINCT p.product_name 
+FROM products p 
+JOIN order_items oi ON p.product_id = oi.product_id 
+JOIN orders o ON oi.order_id = o.order_id 
+JOIN customers c ON o.customer_id = c.customer_id 
+WHERE p.category = 'Clothing'",TRUE,TRUE,TRUE,TRUE,2.6043
+Qwen2.5-1.5B,custom,custom,custom_12,Easy,How many customers live in Paris?,SELECT count(*) FROM customers WHERE city = 'Paris',SELECT COUNT(DISTINCT T1.customer_id) AS num_customers FROM customers AS T1 JOIN orders AS T2 ON T1.customer_id = T2.customer_id WHERE T1.city = 'Paris',TRUE,TRUE,TRUE,FALSE,2.0705
+Qwen2.5-1.5B,custom,custom,custom_13,Easy,What is the price of the product with ID 4?,SELECT price FROM products WHERE product_id = 4,"SELECT T1.price 
+FROM products AS T1 
+JOIN order_items AS T3 ON T1.product_id = T3.product_id 
+WHERE T3.product_id = 4;",TRUE,TRUE,TRUE,FALSE,1.3205
+Qwen2.5-1.5B,custom,custom,custom_14,Easy,How many customers live in London?,SELECT count(*) FROM customers WHERE city = 'London',SELECT COUNT(DISTINCT T1.customer_id) AS num_customers FROM customers AS T1 JOIN orders AS T2 ON T1.customer_id = T2.customer_id WHERE T1.city = 'London',TRUE,TRUE,TRUE,FALSE,1.6655
+Qwen2.5-1.5B,custom,custom,custom_15,Easy,What is the price of the product with ID 6?,SELECT price FROM products WHERE product_id = 6,"SELECT T1.price 
+FROM products AS T1 
+JOIN order_items AS T3 ON T1.product_id = T3.product_id 
+WHERE T3.product_id = 6;",TRUE,TRUE,TRUE,FALSE,1.3716
+Qwen2.5-1.5B,custom,custom,custom_16,Easy,What is the price of the product with ID 5?,SELECT price FROM products WHERE product_id = 5,"SELECT T1.price 
+FROM products AS T1 
+JOIN order_items AS T3 ON T1.product_id = T3.product_id 
+WHERE T3.product_id = 5;",TRUE,TRUE,TRUE,FALSE,1.4273
+Qwen2.5-1.5B,custom,custom,custom_17,Easy,How many customers live in London?,SELECT count(*) FROM customers WHERE city = 'London',SELECT COUNT(DISTINCT T1.customer_id) AS num_customers FROM customers AS T1 JOIN orders AS T2 ON T1.customer_id = T2.customer_id WHERE T1.city = 'London',TRUE,TRUE,TRUE,FALSE,2.0236
+Qwen2.5-1.5B,custom,custom,custom_18,Easy,What is the price of the product with ID 3?,SELECT price FROM products WHERE product_id = 3,SELECT price FROM products WHERE product_id = 3;,TRUE,TRUE,TRUE,TRUE,0.4548
+Qwen2.5-1.5B,custom,custom,custom_19,Easy,How many customers live in Tokyo?,SELECT count(*) FROM customers WHERE city = 'Tokyo',SELECT COUNT(DISTINCT T1.customer_id) AS num_customers FROM customers AS T1 JOIN orders AS T2 ON T1.customer_id = T2.customer_id WHERE T1.city = 'Tokyo',TRUE,TRUE,TRUE,FALSE,1.7103
+Qwen2.5-1.5B,custom,custom,custom_20,Easy,List all products in the Electronics category.,SELECT product_name FROM products WHERE category = 'Electronics',SELECT product_name FROM products WHERE category = 'Electronics',TRUE,TRUE,TRUE,TRUE,0.519
+Qwen2.5-1.5B,custom,custom,custom_21,Easy,What is the price of the product with ID 3?,SELECT price FROM products WHERE product_id = 3,SELECT price FROM products WHERE product_id = 3;,TRUE,TRUE,TRUE,TRUE,0.4555
+Qwen2.5-1.5B,custom,custom,custom_22,Easy,What is the price of the product with ID 6?,SELECT price FROM products WHERE product_id = 6,"SELECT T1.price 
+FROM products AS T1 
+JOIN order_items AS T3 ON T1.product_id = T3.product_id 
+WHERE T3.product_id = 6;",TRUE,TRUE,TRUE,FALSE,1.3823
+Qwen2.5-1.5B,custom,custom,custom_23,Easy,How many customers live in Tokyo?,SELECT count(*) FROM customers WHERE city = 'Tokyo',SELECT COUNT(DISTINCT T1.customer_id) AS num_customers FROM customers AS T1 JOIN orders AS T2 ON T1.customer_id = T2.customer_id WHERE T1.city = 'Tokyo',TRUE,TRUE,TRUE,FALSE,1.7618
+Qwen2.5-1.5B,custom,custom,custom_24,Easy,List all products in the Clothing category.,SELECT product_name FROM products WHERE category = 'Clothing',"SELECT DISTINCT p.product_name 
+FROM products p 
+JOIN order_items oi ON p.product_id = oi.product_id 
+JOIN orders o ON oi.order_id = o.order_id 
+JOIN customers c ON o.customer_id = c.customer_id 
+WHERE p.category = 'Clothing'",TRUE,TRUE,TRUE,TRUE,2.7443
+Qwen2.5-1.5B,custom,custom,custom_25,Medium,List the total revenue generated from each customer city.,"SELECT T2.city, sum(T1.total_amount) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id GROUP BY T2.city","SELECT 
+    c.city, 
+    SUM(o.total_amount) AS total_revenue
+FROM 
+    customers c
+JOIN 
+    orders o ON c.customer_id = o.customer_id
+GROUP BY 
+    c.city;",TRUE,TRUE,TRUE,TRUE,2.4297
+Qwen2.5-1.5B,custom,custom,custom_26,Medium,What is the average price of products in each category?,"SELECT category, avg(price) FROM products GROUP BY category","SELECT 
+    p.category,
+    AVG(p.price) AS average_price
+FROM 
+    products p
+GROUP BY 
+    p.category;",TRUE,TRUE,TRUE,TRUE,1.3201
+Qwen2.5-1.5B,custom,custom,custom_27,Medium,List the total revenue generated from each customer city.,"SELECT T2.city, sum(T1.total_amount) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id GROUP BY T2.city","SELECT 
+    c.city, 
+    SUM(o.total_amount) AS total_revenue
+FROM 
+    customers c
+JOIN 
+    orders o ON c.customer_id = o.customer_id
+GROUP BY 
+    c.city;",TRUE,TRUE,TRUE,TRUE,1.9596
+Qwen2.5-1.5B,custom,custom,custom_28,Medium,List the total revenue generated from each customer city.,"SELECT T2.city, sum(T1.total_amount) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id GROUP BY T2.city","SELECT 
+    c.city, 
+    SUM(o.total_amount) AS total_revenue
+FROM 
+    customers c
+JOIN 
+    orders o ON c.customer_id = o.customer_id
+GROUP BY 
+    c.city;",TRUE,TRUE,TRUE,TRUE,1.986
+Qwen2.5-1.5B,custom,custom,custom_29,Medium,What is the average price of products in each category?,"SELECT category, avg(price) FROM products GROUP BY category","SELECT 
+    p.category,
+    AVG(p.price) AS average_price
+FROM 
+    products p
+GROUP BY 
+    p.category;",TRUE,TRUE,TRUE,TRUE,1.3046
+Qwen2.5-1.5B,custom,custom,custom_30,Medium,List the total revenue generated from each customer city.,"SELECT T2.city, sum(T1.total_amount) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id GROUP BY T2.city","SELECT 
+    c.city, 
+    SUM(o.total_amount) AS total_revenue
+FROM 
+    customers c
+JOIN 
+    orders o ON c.customer_id = o.customer_id
+GROUP BY 
+    c.city;",TRUE,TRUE,TRUE,TRUE,1.9538
+Qwen2.5-1.5B,custom,custom,custom_31,Medium,What is the average price of products in each category?,"SELECT category, avg(price) FROM products GROUP BY category","SELECT 
+    p.category,
+    AVG(p.price) AS average_price
+FROM 
+    products p
+GROUP BY 
+    p.category;",TRUE,TRUE,TRUE,TRUE,1.6993
+Qwen2.5-1.5B,custom,custom,custom_32,Medium,What is the average price of products in each category?,"SELECT category, avg(price) FROM products GROUP BY category","SELECT 
+    p.category,
+    AVG(p.price) AS average_price
+FROM 
+    products p
+GROUP BY 
+    p.category;",TRUE,TRUE,TRUE,TRUE,1.6881
+Qwen2.5-1.5B,custom,custom,custom_33,Medium,List the total revenue generated from each customer city.,"SELECT T2.city, sum(T1.total_amount) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id GROUP BY T2.city","SELECT 
+    c.city, 
+    SUM(o.total_amount) AS total_revenue
+FROM 
+    customers c
+JOIN 
+    orders o ON c.customer_id = o.customer_id
+GROUP BY 
+    c.city;",TRUE,TRUE,TRUE,TRUE,1.9899
+Qwen2.5-1.5B,custom,custom,custom_34,Medium,Find the total number of orders placed by User1 Test1.,SELECT count(*) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id WHERE T2.first_name = 'User1' AND T2.last_name = 'Test1',"SELECT COUNT(order_id) AS total_orders
+FROM orders
+WHERE customer_id = (SELECT customer_id FROM customers WHERE first_name = 'User' AND last_name = 'Test1')",TRUE,TRUE,TRUE,FALSE,1.4849
+Qwen2.5-1.5B,custom,custom,custom_35,Medium,Find the total number of orders placed by User1 Test1.,SELECT count(*) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id WHERE T2.first_name = 'User1' AND T2.last_name = 'Test1',"SELECT COUNT(order_id) AS total_orders
+FROM orders
+WHERE customer_id = (SELECT customer_id FROM customers WHERE first_name = 'User' AND last_name = 'Test1')",TRUE,TRUE,TRUE,FALSE,1.4767
+Qwen2.5-1.5B,custom,custom,custom_36,Medium,List the total revenue generated from each customer city.,"SELECT T2.city, sum(T1.total_amount) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id GROUP BY T2.city","SELECT 
+    c.city, 
+    SUM(o.total_amount) AS total_revenue
+FROM 
+    customers c
+JOIN 
+    orders o ON c.customer_id = o.customer_id
+GROUP BY 
+    c.city;",TRUE,TRUE,TRUE,TRUE,1.9463
+Qwen2.5-1.5B,custom,custom,custom_37,Medium,Find the total number of orders placed by User1 Test1.,SELECT count(*) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id WHERE T2.first_name = 'User1' AND T2.last_name = 'Test1',"SELECT COUNT(order_id) AS total_orders
+FROM orders
+WHERE customer_id = (SELECT customer_id FROM customers WHERE first_name = 'User' AND last_name = 'Test1')",TRUE,TRUE,TRUE,FALSE,1.4913
+Qwen2.5-1.5B,custom,custom,custom_38,Medium,List the total revenue generated from each customer city.,"SELECT T2.city, sum(T1.total_amount) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id GROUP BY T2.city","SELECT 
+    c.city, 
+    SUM(o.total_amount) AS total_revenue
+FROM 
+    customers c
+JOIN 
+    orders o ON c.customer_id = o.customer_id
+GROUP BY 
+    c.city;",TRUE,TRUE,TRUE,TRUE,2.1563
+Qwen2.5-1.5B,custom,custom,custom_39,Medium,Find the total number of orders placed by User1 Test1.,SELECT count(*) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id WHERE T2.first_name = 'User1' AND T2.last_name = 'Test1',"SELECT COUNT(order_id) AS total_orders
+FROM orders
+WHERE customer_id = (SELECT customer_id FROM customers WHERE first_name = 'User' AND last_name = 'Test1')",TRUE,TRUE,TRUE,FALSE,2.051
+Qwen2.5-1.5B,custom,custom,custom_40,Medium,List the total revenue generated from each customer city.,"SELECT T2.city, sum(T1.total_amount) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id GROUP BY T2.city","SELECT 
+    c.city, 
+    SUM(o.total_amount) AS total_revenue
+FROM 
+    customers c
+JOIN 
+    orders o ON c.customer_id = o.customer_id
+GROUP BY 
+    c.city;",TRUE,TRUE,TRUE,TRUE,1.948
+Qwen2.5-1.5B,custom,custom,custom_41,Medium,Find the total number of orders placed by User1 Test1.,SELECT count(*) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id WHERE T2.first_name = 'User1' AND T2.last_name = 'Test1',"SELECT COUNT(order_id) AS total_orders
+FROM orders
+WHERE customer_id = (SELECT customer_id FROM customers WHERE first_name = 'User' AND last_name = 'Test1')",TRUE,TRUE,TRUE,FALSE,1.5026
+Qwen2.5-1.5B,custom,custom,custom_42,Medium,List the total revenue generated from each customer city.,"SELECT T2.city, sum(T1.total_amount) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id GROUP BY T2.city","SELECT 
+    c.city, 
+    SUM(o.total_amount) AS total_revenue
+FROM 
+    customers c
+JOIN 
+    orders o ON c.customer_id = o.customer_id
+GROUP BY 
+    c.city;",TRUE,TRUE,TRUE,TRUE,1.9697
+Qwen2.5-1.5B,custom,custom,custom_43,Medium,What is the average price of products in each category?,"SELECT category, avg(price) FROM products GROUP BY category","SELECT 
+    p.category,
+    AVG(p.price) AS average_price
+FROM 
+    products p
+GROUP BY 
+    p.category;",TRUE,TRUE,TRUE,TRUE,1.3158
+Qwen2.5-1.5B,custom,custom,custom_44,Medium,Find the total number of orders placed by User1 Test1.,SELECT count(*) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id WHERE T2.first_name = 'User1' AND T2.last_name = 'Test1',"SELECT COUNT(order_id) AS total_orders
+FROM orders
+WHERE customer_id = (SELECT customer_id FROM customers WHERE first_name = 'User' AND last_name = 'Test1')",TRUE,TRUE,TRUE,FALSE,1.5093
+Qwen2.5-1.5B,custom,custom,custom_45,Medium,Find the total number of orders placed by User1 Test1.,SELECT count(*) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id WHERE T2.first_name = 'User1' AND T2.last_name = 'Test1',"SELECT COUNT(order_id) AS total_orders
+FROM orders
+WHERE customer_id = (SELECT customer_id FROM customers WHERE first_name = 'User' AND last_name = 'Test1')",TRUE,TRUE,TRUE,FALSE,1.4918
+Qwen2.5-1.5B,custom,custom,custom_46,Medium,What is the average price of products in each category?,"SELECT category, avg(price) FROM products GROUP BY category","SELECT 
+    p.category,
+    AVG(p.price) AS average_price
+FROM 
+    products p
+GROUP BY 
+    p.category;",TRUE,TRUE,TRUE,TRUE,1.7697
+Qwen2.5-1.5B,custom,custom,custom_47,Medium,What is the average price of products in each category?,"SELECT category, avg(price) FROM products GROUP BY category","SELECT 
+    p.category,
+    AVG(p.price) AS average_price
+FROM 
+    products p
+GROUP BY 
+    p.category;",TRUE,TRUE,TRUE,TRUE,1.6581
+Qwen2.5-1.5B,custom,custom,custom_48,Medium,List the total revenue generated from each customer city.,"SELECT T2.city, sum(T1.total_amount) FROM orders T1 JOIN customers T2 ON T1.customer_id = T2.customer_id GROUP BY T2.city","SELECT 
+    c.city, 
+    SUM(o.total_amount) AS total_revenue
+FROM 
+    customers c
+JOIN 
+    orders o ON c.customer_id = o.customer_id
+GROUP BY 
+    c.city;",TRUE,TRUE,TRUE,TRUE,1.9855
+Qwen2.5-1.5B,custom,custom,custom_49,Medium,What is the average price of products in each category?,"SELECT category, avg(price) FROM products GROUP BY category","SELECT 
+    p.category,
+    AVG(p.price) AS average_price
+FROM 
+    products p
+GROUP BY 
+    p.category;",TRUE,TRUE,TRUE,TRUE,1.3149
+Qwen2.5-1.5B,custom,custom,custom_50,Hard,Find the first name of customers who bought 'Product 1' but live in 'Paris'.,SELECT T1.first_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 1' AND T1.city = 'Paris',"SELECT c.first_name
+FROM customers AS c
+JOIN orders AS o ON c.customer_id = o.customer_id
+JOIN order_items AS oi ON o.order_id = oi.order_id
+JOIN products AS p ON oi.product_id = p.product_id
+WHERE p.product_name = 'Product 1'
+AND",TRUE,FALSE,FALSE,FALSE,2.5357
+Qwen2.5-1.5B,custom,custom,custom_51,Hard,Which customers have bought 'Product 5'?,"SELECT DISTINCT T1.first_name, T1.last_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 5'","SELECT c.first_name, c.last_name 
+FROM customers c 
+JOIN orders o ON c.customer_id = o.customer_id 
+JOIN order_items oi ON o.order_id = oi.order_id 
+JOIN products p ON oi.product_id = p.product_id 
+WHERE p.product_id = 5;",TRUE,TRUE,TRUE,TRUE,2.9146
+Qwen2.5-1.5B,custom,custom,custom_52,Hard,Which customers have bought 'Product 1'?,"SELECT DISTINCT T1.first_name, T1.last_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 1'","SELECT c.first_name, c.last_name 
+FROM customers c 
+JOIN orders o ON c.customer_id = o.customer_id 
+JOIN order_items oi ON o.order_id = oi.order_id 
+JOIN products p ON oi.product_id = p.product_id 
+WHERE p.product_id = 'Product 1';",TRUE,FALSE,TRUE,FALSE,2.8762
+Qwen2.5-1.5B,custom,custom,custom_53,Hard,Which customers have bought 'Product 5'?,"SELECT DISTINCT T1.first_name, T1.last_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 5'","SELECT c.first_name, c.last_name 
+FROM customers c 
+JOIN orders o ON c.customer_id = o.customer_id 
+JOIN order_items oi ON o.order_id = oi.order_id 
+JOIN products p ON oi.product_id = p.product_id 
+WHERE p.product_id = 5;",TRUE,TRUE,TRUE,TRUE,2.423
+Qwen2.5-1.5B,custom,custom,custom_54,Hard,List the total quantity of 'Product 5' ordered by customers in 'Tokyo'.,SELECT sum(T3.quantity) FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 5' AND T1.city = 'Tokyo',"SELECT 
+    SUM(order_items.quantity) AS total_quantity
+FROM 
+    orders o
+JOIN 
+    order_items oi ON o.order_id = oi.order_id
+JOIN 
+    products p ON oi.product_id = p.product_id
+WHERE 
+    p.product_id = 5 AND o.city = '",TRUE,FALSE,FALSE,FALSE,2.5032
+Qwen2.5-1.5B,custom,custom,custom_55,Hard,Find the first name of customers who bought 'Product 5' but live in 'New York'.,SELECT T1.first_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 5' AND T1.city = 'New York',"SELECT c.first_name
+FROM customers AS c
+JOIN orders AS o ON c.customer_id = o.customer_id
+JOIN order_items AS oi ON o.order_id = oi.order_id
+JOIN products AS p ON oi.product_id = p.product_id
+WHERE p.product_id = 5 AND c.city =",TRUE,FALSE,FALSE,FALSE,3.0635
+Qwen2.5-1.5B,custom,custom,custom_56,Hard,List the total quantity of 'Product 5' ordered by customers in 'Paris'.,SELECT sum(T3.quantity) FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 5' AND T1.city = 'Paris',"SELECT 
+    SUM(order_items.quantity) AS total_quantity_ordered
+FROM 
+    orders o
+JOIN 
+    order_items oi ON o.order_id = oi.order_id
+JOIN 
+    products p ON oi.product_id = p.product_id
+WHERE 
+    p.product_id = 5 AND o.city =",TRUE,FALSE,FALSE,FALSE,2.4812
+Qwen2.5-1.5B,custom,custom,custom_57,Hard,Which customers have bought 'Product 10'?,"SELECT DISTINCT T1.first_name, T1.last_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 10'","SELECT c.first_name, c.last_name 
+FROM customers c 
+JOIN orders o ON c.customer_id = o.customer_id 
+JOIN order_items oi ON o.order_id = oi.order_id 
+JOIN products p ON oi.product_id = p.product_id 
+WHERE p.product_id = 10;",TRUE,TRUE,TRUE,FALSE,2.4737
+Qwen2.5-1.5B,custom,custom,custom_58,Hard,Find the first name of customers who bought 'Product 5' but live in 'London'.,SELECT T1.first_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 5' AND T1.city = 'London',"SELECT c.first_name
+FROM customers AS c
+JOIN orders AS o ON c.customer_id = o.customer_id
+JOIN order_items AS oi ON o.order_id = oi.order_id
+JOIN products AS p ON oi.product_id = p.product_id
+WHERE p.product_id = 5 AND c.city =",TRUE,FALSE,FALSE,FALSE,3.1573
+Qwen2.5-1.5B,custom,custom,custom_59,Hard,Find the first name of customers who bought 'Product 1' but live in 'London'.,SELECT T1.first_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 1' AND T1.city = 'London',"SELECT c.first_name
+FROM customers AS c
+JOIN orders AS o ON c.customer_id = o.customer_id
+JOIN order_items AS oi ON o.order_id = oi.order_id
+JOIN products AS p ON oi.product_id = p.product_id
+WHERE p.product_name = 'Product 1'
+AND",TRUE,FALSE,FALSE,FALSE,2.4975
+Qwen2.5-1.5B,custom,custom,custom_60,Hard,Find the first name of customers who bought 'Product 5' but live in 'Tokyo'.,SELECT T1.first_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 5' AND T1.city = 'Tokyo',"SELECT c.first_name
+FROM customers AS c
+JOIN orders AS o ON c.customer_id = o.customer_id
+JOIN order_items AS oi ON o.order_id = oi.order_id
+JOIN products AS p ON oi.product_id = p.product_id
+WHERE p.product_id = 5 AND c.city =",TRUE,FALSE,FALSE,FALSE,2.4767
+Qwen2.5-1.5B,custom,custom,custom_61,Hard,Which customers have bought 'Product 5'?,"SELECT DISTINCT T1.first_name, T1.last_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 5'","SELECT c.first_name, c.last_name 
+FROM customers c 
+JOIN orders o ON c.customer_id = o.customer_id 
+JOIN order_items oi ON o.order_id = oi.order_id 
+JOIN products p ON oi.product_id = p.product_id 
+WHERE p.product_id = 5;",TRUE,TRUE,TRUE,TRUE,2.459
+Qwen2.5-1.5B,custom,custom,custom_62,Hard,Find the first name of customers who bought 'Product 10' but live in 'Paris'.,SELECT T1.first_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 10' AND T1.city = 'Paris',"SELECT c.first_name
+FROM customers AS c
+JOIN orders AS o ON c.customer_id = o.customer_id
+JOIN order_items AS oi ON o.order_id = oi.order_id
+JOIN products AS p ON oi.product_id = p.product_id
+WHERE p.product_name = 'Product 10'",TRUE,TRUE,TRUE,FALSE,2.8418
+Qwen2.5-1.5B,custom,custom,custom_63,Hard,Which customers have bought 'Product 5'?,"SELECT DISTINCT T1.first_name, T1.last_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 5'","SELECT c.first_name, c.last_name 
+FROM customers c 
+JOIN orders o ON c.customer_id = o.customer_id 
+JOIN order_items oi ON o.order_id = oi.order_id 
+JOIN products p ON oi.product_id = p.product_id 
+WHERE p.product_id = 5;",TRUE,TRUE,TRUE,TRUE,2.4663
+Qwen2.5-1.5B,custom,custom,custom_64,Hard,List the total quantity of 'Product 10' ordered by customers in 'Paris'.,SELECT sum(T3.quantity) FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 10' AND T1.city = 'Paris',"SELECT 
+    SUM(order_items.quantity) AS total_quantity_ordered
+FROM 
+    orders o
+JOIN 
+    order_items oi ON o.order_id = oi.order_id
+JOIN 
+    products p ON oi.product_id = p.product_id
+WHERE 
+    p.product_id = 'Product 10'",TRUE,FALSE,FALSE,FALSE,2.6342
+Qwen2.5-1.5B,custom,custom,custom_65,Hard,Find the first name of customers who bought 'Product 1' but live in 'Tokyo'.,SELECT T1.first_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 1' AND T1.city = 'Tokyo',"SELECT c.first_name
+FROM customers AS c
+JOIN orders AS o ON c.customer_id = o.customer_id
+JOIN order_items AS oi ON o.order_id = oi.order_id
+JOIN products AS p ON oi.product_id = p.product_id
+WHERE p.product_name = 'Product 1'
+AND",TRUE,FALSE,FALSE,FALSE,2.5232
+Qwen2.5-1.5B,custom,custom,custom_66,Hard,Find the first name of customers who bought 'Product 1' but live in 'Paris'.,SELECT T1.first_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 1' AND T1.city = 'Paris',"SELECT c.first_name
+FROM customers AS c
+JOIN orders AS o ON c.customer_id = o.customer_id
+JOIN order_items AS oi ON o.order_id = oi.order_id
+JOIN products AS p ON oi.product_id = p.product_id
+WHERE p.product_name = 'Product 1'
+AND",TRUE,FALSE,FALSE,FALSE,2.53
+Qwen2.5-1.5B,custom,custom,custom_67,Hard,Which customers have bought 'Product 5'?,"SELECT DISTINCT T1.first_name, T1.last_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 5'","SELECT c.first_name, c.last_name 
+FROM customers c 
+JOIN orders o ON c.customer_id = o.customer_id 
+JOIN order_items oi ON o.order_id = oi.order_id 
+JOIN products p ON oi.product_id = p.product_id 
+WHERE p.product_id = 5;",TRUE,TRUE,TRUE,TRUE,2.9375
+Qwen2.5-1.5B,custom,custom,custom_68,Hard,List the total quantity of 'Product 1' ordered by customers in 'London'.,SELECT sum(T3.quantity) FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 1' AND T1.city = 'London',"SELECT 
+    SUM(order_items.quantity) AS total_quantity
+FROM 
+    orders o
+JOIN 
+    order_items oi ON o.order_id = oi.order_id
+JOIN 
+    products p ON oi.product_id = p.product_id
+WHERE 
+    p.product_name = 'Product 1'
+AND",TRUE,FALSE,FALSE,FALSE,2.5146
+Qwen2.5-1.5B,custom,custom,custom_69,Hard,Find the first name of customers who bought 'Product 1' but live in 'New York'.,SELECT T1.first_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 1' AND T1.city = 'New York',"SELECT c.first_name
+FROM customers AS c
+JOIN orders AS o ON c.customer_id = o.customer_id
+JOIN order_items AS oi ON o.order_id = oi.order_id
+JOIN products AS p ON oi.product_id = p.product_id
+WHERE p.product_name = 'Product 1'
+AND",TRUE,FALSE,FALSE,FALSE,2.5403
+Qwen2.5-1.5B,custom,custom,custom_70,Hard,Find the first name of customers who bought 'Product 5' but live in 'London'.,SELECT T1.first_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 5' AND T1.city = 'London',"SELECT c.first_name
+FROM customers AS c
+JOIN orders AS o ON c.customer_id = o.customer_id
+JOIN order_items AS oi ON o.order_id = oi.order_id
+JOIN products AS p ON oi.product_id = p.product_id
+WHERE p.product_id = 5 AND c.city =",TRUE,FALSE,FALSE,FALSE,2.7879
+Qwen2.5-1.5B,custom,custom,custom_71,Hard,Which customers have bought 'Product 1'?,"SELECT DISTINCT T1.first_name, T1.last_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 1'","SELECT c.first_name, c.last_name 
+FROM customers c 
+JOIN orders o ON c.customer_id = o.customer_id 
+JOIN order_items oi ON o.order_id = oi.order_id 
+JOIN products p ON oi.product_id = p.product_id 
+WHERE p.product_id = 'Product 1';",TRUE,FALSE,TRUE,FALSE,2.5075
+Qwen2.5-1.5B,custom,custom,custom_72,Hard,Find the first name of customers who bought 'Product 1' but live in 'London'.,SELECT T1.first_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 1' AND T1.city = 'London',"SELECT c.first_name
+FROM customers AS c
+JOIN orders AS o ON c.customer_id = o.customer_id
+JOIN order_items AS oi ON o.order_id = oi.order_id
+JOIN products AS p ON oi.product_id = p.product_id
+WHERE p.product_name = 'Product 1'
+AND",TRUE,FALSE,FALSE,FALSE,2.4667
+Qwen2.5-1.5B,custom,custom,custom_73,Hard,List the total quantity of 'Product 10' ordered by customers in 'New York'.,SELECT sum(T3.quantity) FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 10' AND T1.city = 'New York',"SELECT 
+    SUM(order_items.quantity) AS total_quantity_ordered
+FROM 
+    orders o
+JOIN 
+    order_items oi ON o.order_id = oi.order_id
+JOIN 
+    products p ON oi.product_id = p.product_id
+WHERE 
+    p.product_id = 'Product 10'",TRUE,FALSE,FALSE,FALSE,2.7021
+Qwen2.5-1.5B,custom,custom,custom_74,Hard,Which customers have bought 'Product 5'?,"SELECT DISTINCT T1.first_name, T1.last_name FROM customers T1 JOIN orders T2 ON T1.customer_id = T2.customer_id JOIN order_items T3 ON T2.order_id = T3.order_id JOIN products T4 ON T3.product_id = T4.product_id WHERE T4.product_name = 'Product 5'","SELECT c.first_name, c.last_name 
+FROM customers c 
+JOIN orders o ON c.customer_id = o.customer_id 
+JOIN order_items oi ON o.order_id = oi.order_id 
+JOIN products p ON oi.product_id = p.product_id 
+WHERE p.product_id = 5;",TRUE,TRUE,TRUE,TRUE,2.4516
+Qwen2.5-1.5B,custom,custom,custom_75,Extra Hard,Find the customers who have placed an order with a value higher than the average order value.,"SELECT first_name, last_name FROM customers WHERE customer_id IN (SELECT customer_id FROM orders WHERE total_amount > (SELECT avg(total_amount) FROM orders))","SELECT c.customer_id, c.first_name, c.last_name
+FROM customers c
+JOIN orders o ON c.customer_id = o.customer_id
+JOIN order_items oi ON o.order_id = oi.order_id
+WHERE o.total_amount > (SELECT AVG(total_amount) FROM orders)
+GROUP BY c.customer_id",TRUE,FALSE,TRUE,FALSE,2.5208
+Qwen2.5-1.5B,custom,custom,custom_76,Extra Hard,Find the order with the highest total amount.,SELECT order_id FROM orders WHERE total_amount = (SELECT max(total_amount) FROM orders),"SELECT o.order_id, o.customer_id, o.order_date, o.status, SUM(p.price * oi.quantity) AS total_amount
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN products p ON oi.product_id = p.product_id
+GROUP BY o.order_id",TRUE,FALSE,TRUE,FALSE,2.4889
+Qwen2.5-1.5B,custom,custom,custom_77,Extra Hard,List products that have never been ordered.,SELECT product_name FROM products WHERE product_id NOT IN (SELECT product_id FROM order_items),"SELECT DISTINCT p.product_name 
+FROM products p 
+WHERE p.product_id NOT IN (SELECT oi.product_id FROM order_items oi)",TRUE,TRUE,TRUE,TRUE,1.2147
+Qwen2.5-1.5B,custom,custom,custom_78,Extra Hard,Find the customers who have placed an order with a value higher than the average order value.,"SELECT first_name, last_name FROM customers WHERE customer_id IN (SELECT customer_id FROM orders WHERE total_amount > (SELECT avg(total_amount) FROM orders))","SELECT c.customer_id, c.first_name, c.last_name
+FROM customers c
+JOIN orders o ON c.customer_id = o.customer_id
+JOIN order_items oi ON o.order_id = oi.order_id
+WHERE o.total_amount > (SELECT AVG(total_amount) FROM orders)
+GROUP BY c.customer_id",TRUE,FALSE,TRUE,FALSE,2.4998
+Qwen2.5-1.5B,custom,custom,custom_79,Extra Hard,List products that have never been ordered.,SELECT product_name FROM products WHERE product_id NOT IN (SELECT product_id FROM order_items),"SELECT DISTINCT p.product_name 
+FROM products p 
+WHERE p.product_id NOT IN (SELECT oi.product_id FROM order_items oi)",TRUE,TRUE,TRUE,TRUE,1.2626
+Qwen2.5-1.5B,custom,custom,custom_80,Extra Hard,Find the customers who have placed an order with a value higher than the average order value.,"SELECT first_name, last_name FROM customers WHERE customer_id IN (SELECT customer_id FROM orders WHERE total_amount > (SELECT avg(total_amount) FROM orders))","SELECT c.customer_id, c.first_name, c.last_name
+FROM customers c
+JOIN orders o ON c.customer_id = o.customer_id
+JOIN order_items oi ON o.order_id = oi.order_id
+WHERE o.total_amount > (SELECT AVG(total_amount) FROM orders)
+GROUP BY c.customer_id",TRUE,FALSE,TRUE,FALSE,3.2903
+Qwen2.5-1.5B,custom,custom,custom_81,Extra Hard,List products that have never been ordered.,SELECT product_name FROM products WHERE product_id NOT IN (SELECT product_id FROM order_items),"SELECT DISTINCT p.product_name 
+FROM products p 
+WHERE p.product_id NOT IN (SELECT oi.product_id FROM order_items oi)",TRUE,TRUE,TRUE,TRUE,1.2013
+Qwen2.5-1.5B,custom,custom,custom_82,Extra Hard,Find the order with the highest total amount.,SELECT order_id FROM orders WHERE total_amount = (SELECT max(total_amount) FROM orders),"SELECT o.order_id, o.customer_id, o.order_date, o.status, SUM(p.price * oi.quantity) AS total_amount
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN products p ON oi.product_id = p.product_id
+GROUP BY o.order_id",TRUE,FALSE,TRUE,FALSE,2.4907
+Qwen2.5-1.5B,custom,custom,custom_83,Extra Hard,List products that have never been ordered.,SELECT product_name FROM products WHERE product_id NOT IN (SELECT product_id FROM order_items),"SELECT DISTINCT p.product_name 
+FROM products p 
+WHERE p.product_id NOT IN (SELECT oi.product_id FROM order_items oi)",TRUE,TRUE,TRUE,TRUE,1.2059
+Qwen2.5-1.5B,custom,custom,custom_84,Extra Hard,Find the order with the highest total amount.,SELECT order_id FROM orders WHERE total_amount = (SELECT max(total_amount) FROM orders),"SELECT o.order_id, o.customer_id, o.order_date, o.status, SUM(p.price * oi.quantity) AS total_amount
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN products p ON oi.product_id = p.product_id
+GROUP BY o.order_id",TRUE,FALSE,TRUE,FALSE,2.6386
+Qwen2.5-1.5B,custom,custom,custom_85,Extra Hard,Find the customers who have placed an order with a value higher than the average order value.,"SELECT first_name, last_name FROM customers WHERE customer_id IN (SELECT customer_id FROM orders WHERE total_amount > (SELECT avg(total_amount) FROM orders))","SELECT c.customer_id, c.first_name, c.last_name
+FROM customers c
+JOIN orders o ON c.customer_id = o.customer_id
+JOIN order_items oi ON o.order_id = oi.order_id
+WHERE o.total_amount > (SELECT AVG(total_amount) FROM orders)
+GROUP BY c.customer_id",TRUE,FALSE,TRUE,FALSE,3.179
+Qwen2.5-1.5B,custom,custom,custom_86,Extra Hard,Find the customers who have placed an order with a value higher than the average order value.,"SELECT first_name, last_name FROM customers WHERE customer_id IN (SELECT customer_id FROM orders WHERE total_amount > (SELECT avg(total_amount) FROM orders))","SELECT c.customer_id, c.first_name, c.last_name
+FROM customers c
+JOIN orders o ON c.customer_id = o.customer_id
+JOIN order_items oi ON o.order_id = oi.order_id
+WHERE o.total_amount > (SELECT AVG(total_amount) FROM orders)
+GROUP BY c.customer_id",TRUE,FALSE,TRUE,FALSE,2.5171
+Qwen2.5-1.5B,custom,custom,custom_87,Extra Hard,Find the customers who have placed an order with a value higher than the average order value.,"SELECT first_name, last_name FROM customers WHERE customer_id IN (SELECT customer_id FROM orders WHERE total_amount > (SELECT avg(total_amount) FROM orders))","SELECT c.customer_id, c.first_name, c.last_name
+FROM customers c
+JOIN orders o ON c.customer_id = o.customer_id
+JOIN order_items oi ON o.order_id = oi.order_id
+WHERE o.total_amount > (SELECT AVG(total_amount) FROM orders)
+GROUP BY c.customer_id",TRUE,FALSE,TRUE,FALSE,2.8571
+Qwen2.5-1.5B,custom,custom,custom_88,Extra Hard,List products that have never been ordered.,SELECT product_name FROM products WHERE product_id NOT IN (SELECT product_id FROM order_items),"SELECT DISTINCT p.product_name 
+FROM products p 
+WHERE p.product_id NOT IN (SELECT oi.product_id FROM order_items oi)",TRUE,TRUE,TRUE,TRUE,1.2062
+Qwen2.5-1.5B,custom,custom,custom_89,Extra Hard,Find the order with the highest total amount.,SELECT order_id FROM orders WHERE total_amount = (SELECT max(total_amount) FROM orders),"SELECT o.order_id, o.customer_id, o.order_date, o.status, SUM(p.price * oi.quantity) AS total_amount
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN products p ON oi.product_id = p.product_id
+GROUP BY o.order_id",TRUE,FALSE,TRUE,FALSE,2.474
+Qwen2.5-1.5B,custom,custom,custom_90,Extra Hard,List products that have never been ordered.,SELECT product_name FROM products WHERE product_id NOT IN (SELECT product_id FROM order_items),"SELECT DISTINCT p.product_name 
+FROM products p 
+WHERE p.product_id NOT IN (SELECT oi.product_id FROM order_items oi)",TRUE,TRUE,TRUE,TRUE,1.2187
+Qwen2.5-1.5B,custom,custom,custom_91,Extra Hard,List products that have never been ordered.,SELECT product_name FROM products WHERE product_id NOT IN (SELECT product_id FROM order_items),"SELECT DISTINCT p.product_name 
+FROM products p 
+WHERE p.product_id NOT IN (SELECT oi.product_id FROM order_items oi)",TRUE,TRUE,TRUE,TRUE,1.2263
+Qwen2.5-1.5B,custom,custom,custom_92,Extra Hard,Find the customers who have placed an order with a value higher than the average order value.,"SELECT first_name, last_name FROM customers WHERE customer_id IN (SELECT customer_id FROM orders WHERE total_amount > (SELECT avg(total_amount) FROM orders))","SELECT c.customer_id, c.first_name, c.last_name
+FROM customers c
+JOIN orders o ON c.customer_id = o.customer_id
+JOIN order_items oi ON o.order_id = oi.order_id
+WHERE o.total_amount > (SELECT AVG(total_amount) FROM orders)
+GROUP BY c.customer_id",TRUE,FALSE,TRUE,FALSE,2.4748
+Qwen2.5-1.5B,custom,custom,custom_93,Extra Hard,Find the order with the highest total amount.,SELECT order_id FROM orders WHERE total_amount = (SELECT max(total_amount) FROM orders),"SELECT o.order_id, o.customer_id, o.order_date, o.status, SUM(p.price * oi.quantity) AS total_amount
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN products p ON oi.product_id = p.product_id
+GROUP BY o.order_id",TRUE,FALSE,TRUE,FALSE,2.4907
+Qwen2.5-1.5B,custom,custom,custom_94,Extra Hard,Find the order with the highest total amount.,SELECT order_id FROM orders WHERE total_amount = (SELECT max(total_amount) FROM orders),"SELECT o.order_id, o.customer_id, o.order_date, o.status, SUM(p.price * oi.quantity) AS total_amount
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN products p ON oi.product_id = p.product_id
+GROUP BY o.order_id",TRUE,FALSE,TRUE,FALSE,2.5195
+Qwen2.5-1.5B,custom,custom,custom_95,Extra Hard,Find the customers who have placed an order with a value higher than the average order value.,"SELECT first_name, last_name FROM customers WHERE customer_id IN (SELECT customer_id FROM orders WHERE total_amount > (SELECT avg(total_amount) FROM orders))","SELECT c.customer_id, c.first_name, c.last_name
+FROM customers c
+JOIN orders o ON c.customer_id = o.customer_id
+JOIN order_items oi ON o.order_id = oi.order_id
+WHERE o.total_amount > (SELECT AVG(total_amount) FROM orders)
+GROUP BY c.customer_id",TRUE,FALSE,TRUE,FALSE,2.485
+Qwen2.5-1.5B,custom,custom,custom_96,Extra Hard,List products that have never been ordered.,SELECT product_name FROM products WHERE product_id NOT IN (SELECT product_id FROM order_items),"SELECT DISTINCT p.product_name 
+FROM products p 
+WHERE p.product_id NOT IN (SELECT oi.product_id FROM order_items oi)",TRUE,TRUE,TRUE,TRUE,1.6494
+Qwen2.5-1.5B,custom,custom,custom_97,Extra Hard,Find the order with the highest total amount.,SELECT order_id FROM orders WHERE total_amount = (SELECT max(total_amount) FROM orders),"SELECT o.order_id, o.customer_id, o.order_date, o.status, SUM(p.price * oi.quantity) AS total_amount
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN products p ON oi.product_id = p.product_id
+GROUP BY o.order_id",TRUE,FALSE,TRUE,FALSE,2.7254
+Qwen2.5-1.5B,custom,custom,custom_98,Extra Hard,Find the order with the highest total amount.,SELECT order_id FROM orders WHERE total_amount = (SELECT max(total_amount) FROM orders),"SELECT o.order_id, o.customer_id, o.order_date, o.status, SUM(p.price * oi.quantity) AS total_amount
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN products p ON oi.product_id = p.product_id
+GROUP BY o.order_id",TRUE,FALSE,TRUE,FALSE,2.536
+Qwen2.5-1.5B,custom,custom,custom_99,Extra Hard,Find the order with the highest total amount.,SELECT order_id FROM orders WHERE total_amount = (SELECT max(total_amount) FROM orders),"SELECT o.order_id, o.customer_id, o.order_date, o.status, SUM(p.price * oi.quantity) AS total_amount
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN products p ON oi.product_id = p.product_id
+GROUP BY o.order_id",TRUE,FALSE,TRUE,FALSE,2.4997
