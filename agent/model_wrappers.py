@@ -16,149 +16,119 @@ class LLMWrapper(ABC):
     def generate_sql(self, question, schema):
         pass
 
-    def _clean_sql(self, text):
+    def _clean_sql(self, text: str) -> str:
         """
         Removes markdown/code artifacts and truncates after the first semicolon.
         """
+        if not text:
+            return ""
+
         # Remove markdown blocks
         if "```" in text:
             parts = text.split("```")
             if len(parts) >= 2:
                 text = parts[1]
-                if text.lower().startswith("sql"):
-                    text = text[3:]
+                if text.lower().lstrip().startswith("sql"):
+                    text = text.split("\n", 1)[-1]
 
-        # Remove common LLM artifacts
+        # Remove common artifacts
         text = text.replace("<|assistant|>", "").strip()
 
-        # Only keep the first SQL statement
+        # If model returns some preface, try to grab after "SQL:"
+        if "SQL:" in text:
+            text = text.split("SQL:", 1)[1].strip()
+
+        # Keep only first statement
         if ";" in text:
-            text = text.split(";")[0] + ";"
+            text = text.split(";")[0].strip() + ";"
 
         return text.strip()
 
 
 # ============================================================
-# TinyLlama Chat Wrapper
+# TinyLlama Wrapper (Completion-style, reliable for CSV SQL)
 # ============================================================
 class TinyLlamaWrapper(LLMWrapper):
     def __init__(self, model_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0"):
         super().__init__(model_name)
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        # Some LLaMA-like tokenizers may not have pad token set
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            dtype=torch.float16 if self.device == "cuda" else torch.float32
+            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32
         ).to(self.device)
 
     def generate_sql(self, question, schema):
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are a helpful data scientist. "
-                    "Your job is to generate valid SQL queries based on the provided schema. "
-                    "Output ONLY the SQL query."
-                )
-            },
-            {
-                "role": "user",
-                "content": f"Schema:\n{schema}\n\nQuestion: {question}"
-            },
-        ]
+        # Completion-style prompt works more reliably than chat-template for TinyLlama
+        prompt = f"""You are an expert Text-to-SQL system.
 
-        inputs = self.tokenizer.apply_chat_template(
-            messages,
-            add_generation_prompt=True,
-            tokenize=True,
-            return_tensors="pt",
-            return_dict = True
-        ).to(self.device)
+Rules:
+- Use ONLY tables and columns from the schema.
+- Output ONLY the SQL query (no explanation, no markdown).
 
-        outputs = self.model.generate(
-            **inputs,
-            max_new_tokens=100,
-            do_sample=False,
-        )
-
-        # Decode only the generated part
-        response = self.tokenizer.decode(
-            outputs[0][inputs["input_ids"].shape[-1]:],
-            skip_special_tokens=True
-        )
-
-        return self._clean_sql(response)
-
-
-# ============================================================
-# GPT-2 SQL Completion Wrapper
-# ============================================================
-class GPT2Wrapper(LLMWrapper):
-    def __init__(self, model_name="openai-community/gpt2"):
-        super().__init__(model_name)
-
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForCausalLM.from_pretrained(model_name).to(self.device)
-
-        # GPT-2 has no pad token → use EOS
-        self.tokenizer.pad_token = self.tokenizer.eos_token
-
-    def generate_sql(self, question, schema):
-        # Very explicit prompt — GPT-2 needs strong conditioning
-        prompt = f"""
-You are an AI system that converts English questions into SQL queries.
-
-Database schema:
+Schema:
 {schema}
 
-Example:
-Question: How many students exist?
-SQL: SELECT COUNT(*) FROM students;
+Question:
+{question}
 
-Now convert the next question.
-
-Question: {question}
 SQL:
 """
 
-        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+        inputs = self.tokenizer(
+            prompt,
+            return_tensors="pt",
+            truncation=True,
+            max_length=2048
+        ).to(self.device)
 
-        outputs = self.model.generate(
-            **inputs,
-            max_new_tokens=80,
-            do_sample=False,
-            pad_token_id=self.tokenizer.eos_token_id,
-            eos_token_id=self.tokenizer.eos_token_id
-        )
+        with torch.no_grad():
+            outputs = self.model.generate(
+                **inputs,
+                max_new_tokens=96,
+                do_sample=False,
+                pad_token_id=self.tokenizer.eos_token_id,
+                eos_token_id=self.tokenizer.eos_token_id
+            )
 
         full_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-        # Extract everything after "SQL:"
+        # Extract after "SQL:" if present
         if "SQL:" in full_text:
-            sql_part = full_text.split("SQL:")[1].strip()
+            sql_part = full_text.split("SQL:", 1)[1].strip()
         else:
             sql_part = full_text.strip()
 
-        # Truncate after first semicolon
-        if ";" in sql_part:
-            sql_part = sql_part.split(";")[0] + ";"
-
         return self._clean_sql(sql_part)
 
+
+# ============================================================
+# Qwen 2.5 Wrapper (Colab-safe, stable)
+# ============================================================
 class Qwen2Wrapper(LLMWrapper):
     def __init__(self, model_name="Qwen/Qwen2.5-1.5B-Instruct"):
         super().__init__(model_name)
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            trust_remote_code=True
+        )
+
+        # Qwen tokenizer usually has eos/pad, but keep safe fallback
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            dtype=torch.float16 if self.device == "cuda" else torch.float32,
             device_map="auto",
-            load_in_4bit=True,          # 🔥 4-bit quantization
-            torch_dtype=torch.float16,  # mixed precision
-        ).to(self.device)
+            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
+            trust_remote_code=True
+        )
 
-        # Qwen expects an EOS token for controlled decoding
         self.eos = self.tokenizer.eos_token_id
 
     def generate_sql(self, question, schema):
@@ -166,9 +136,10 @@ class Qwen2Wrapper(LLMWrapper):
             {
                 "role": "system",
                 "content": (
-                    "You are an expert SQL generator. "
-                    "Given a database schema and a natural language question, "
-                    "output ONLY the SQL query. Do not explain."
+                    "You are a Text-to-SQL system. "
+                    "Use ONLY the tables and columns provided in the schema. "
+                    "Do NOT hallucinate tables or columns. "
+                    "Output ONLY a valid SQL query."
                 )
             },
             {
@@ -177,24 +148,25 @@ class Qwen2Wrapper(LLMWrapper):
             }
         ]
 
-        # Qwen uses ChatML prompt format
         input_ids = self.tokenizer.apply_chat_template(
             messages,
             tokenize=True,
             add_generation_prompt=True,
-            return_tensors="pt"
+            return_tensors="pt",
+            truncation=True,
+            max_length=2048
         ).to(self.device)
 
-        outputs = self.model.generate(
-            input_ids=input_ids,
-            max_new_tokens=120,
-            do_sample=False,         # deterministic output
-            eos_token_id=self.eos,   # stop at EOS
-        )
+        with torch.no_grad():
+            outputs = self.model.generate(
+                input_ids=input_ids,
+                max_new_tokens=64,
+                do_sample=False,
+                eos_token_id=self.eos,
+                pad_token_id=self.tokenizer.eos_token_id
+            )
 
-        # Slice off the prompt
         generated = outputs[0][input_ids.shape[-1]:]
-
         text = self.tokenizer.decode(generated, skip_special_tokens=True)
 
         return self._clean_sql(text)
