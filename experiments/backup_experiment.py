@@ -8,8 +8,6 @@ import random
 from tqdm import tqdm
 from sqlalchemy import create_engine, text
 
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
-
 # --- Setup Paths ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, ".."))
@@ -45,19 +43,6 @@ parser.add_argument(
     default=25,
     help="Write progress to disk every N processed questions"
 )
-
-# Debug where it hangs
-parser.add_argument("--debug_hang", action="store_true")
-
-# Postgres query timeout (statement_timeout)
-parser.add_argument("--pg_timeout_ms", type=int, default=7000)
-
-# SQLite per-query timeout (seconds)
-parser.add_argument("--sqlite_timeout_s", type=float, default=15.0)
-
-# Optional: skip PG exec
-parser.add_argument("--skip_pg_exec", action="store_true")
-
 args = parser.parse_args()
 
 MODELS_TO_TEST = (
@@ -74,7 +59,6 @@ COLS = [
     "ground_truth_sql", "generated_sql", "gt_exec_success",
     "pred_exec_success_pg", "pred_exec_success_sqlite", "is_correct", "generation_time"
 ]
-
 # --- Cache SQLite Paths ---
 SQLITE_PATH_CACHE = {}
 
@@ -83,11 +67,13 @@ def find_source_sqlite(dataset_name, db_id):
     if cache_key in SQLITE_PATH_CACHE:
         return SQLITE_PATH_CACHE[cache_key]
 
+    # Some setups keep a flat "data/<db_id>-db.added-in-2020.sqlite"
     p = os.path.join("data", f"{db_id}-db.added-in-2020.sqlite")
     if os.path.exists(p):
         SQLITE_PATH_CACHE[cache_key] = p
         return p
 
+    # Standard Spider layout: data/database/<db_id>/*.sqlite
     db_dir = os.path.join("data", "database", db_id)
     files = sorted(glob.glob(os.path.join(db_dir, "*.sqlite")))
     if files:
@@ -111,6 +97,10 @@ def schema_from_sqlite(sqlite_eng) -> str:
         return ""
 
 def sample_questions(questions, dataset_name, N, seed=123):
+    """
+    If N >= len(questions) -> return all.
+    Otherwise random sample. For spider we keep a bit of db diversity.
+    """
     random.seed(seed)
     if len(questions) <= N:
         return questions
@@ -136,6 +126,9 @@ def sample_questions(questions, dataset_name, N, seed=123):
     return random.sample(questions, N)
 
 def load_completed_keys(csv_path: str) -> set:
+    """
+    Resume keys from CSV. We trust the exact 'question_id' we stored.
+    """
     if not os.path.exists(csv_path):
         return set()
 
@@ -162,33 +155,6 @@ def safe_write_results(df: pd.DataFrame, path: str):
     tmp = path + ".tmp"
     df.to_csv(tmp, index=False)
     os.replace(tmp, path)
-
-def set_pg_statement_timeout(pg_engine, timeout_ms: int):
-    try:
-        with pg_engine.connect() as conn:
-            conn.execute(text(f"SET statement_timeout = {int(timeout_ms)}"))
-            conn.commit()
-    except Exception:
-        pass
-
-# ---------------------------
-# SQLite execute with timeout
-# ---------------------------
-_SQLITE_EXEC_POOL = ThreadPoolExecutor(max_workers=1)
-
-def execute_sqlite_with_timeout(sqlite_engine, sql: str, timeout_s: float):
-    """
-    Runs execute_query(sqlite_engine, sql) in a separate thread and returns (success, result).
-    If it times out, returns (False, f"TIMEOUT after {timeout_s}s").
-    """
-    fut = _SQLITE_EXEC_POOL.submit(execute_query, sqlite_engine, sql)
-    try:
-        return fut.result(timeout=timeout_s)
-    except FutureTimeoutError:
-        return False, f"TIMEOUT after {timeout_s}s"
-    except Exception as e:
-        return False, f"ERROR: {e}"
-
 def run_experiment_loop():
     print(f"🚀 Starting Optimization Experiment Loop for: {args.datasets}")
     print(f"💾 Results file: {RESULTS_FILE}")
@@ -202,9 +168,6 @@ def run_experiment_loop():
     except Exception as e:
         print(f"⚠️ Postgres Connection Error: {e}")
         return
-
-    if not args.skip_pg_exec:
-        set_pg_statement_timeout(pg_engine, args.pg_timeout_ms)
 
     all_results = []
     if os.path.exists(RESULTS_FILE):
@@ -237,16 +200,23 @@ def run_experiment_loop():
 
                 print(f"   Loaded {len(questions)} questions from loader.")
 
-                # Stable uid per loader order (needed for Spider weird IDs)
+                # ✅ CRITICAL FIX:
+                # Your pipeline yields non-unique spider ids (9693 questions -> 5222 unique ids).
+                # So we FORCE a stable unique id based on file order.
                 for i, q in enumerate(questions):
                     q["_uid"] = f"{dataset_name}_{i}"
 
+                # Sample AFTER adding ids (so sampling keeps stable ids)
                 questions = sample_questions(questions, dataset_name, args.n)
+
+                # Sort by db_id for smoother DB preloads
                 questions.sort(key=lambda x: x.get("db_id", ""))
 
+                # DEBUG: unique keys must match number of questions now
                 keys = {(dataset_name, str(q.get("db_id", "")).strip(), q["_uid"]) for q in questions}
                 print(f"   DEBUG: unique keys from questions = {len(keys)} / {len(questions)}")
 
+                # Find missing (based on our forced unique ids)
                 missing_questions = []
                 for q in questions:
                     db_id = str(q.get("db_id", "")).strip()
@@ -258,7 +228,7 @@ def run_experiment_loop():
                 print(f"   ✅ Missing to generate: {len(missing_questions)} / {len(questions)}")
                 if not missing_questions:
                     continue
-
+                # Preload DBs only for missing questions
                 unique_dbs = sorted(set(q["db_id"] for q in missing_questions if q.get("db_id")))
                 print(f"   ...Pre-loading {len(unique_dbs)} databases and schemas...")
 
@@ -269,12 +239,7 @@ def run_experiment_loop():
                             print(f"   ⚠️ Missing sqlite file for db_id={db_id}, skipping.")
                             continue
                         load_db(db_id, src, pg_engine)
-
-                        # IMPORTANT: allow thread usage safely
-                        active_sqlite_engines[db_id] = create_engine(
-                            f"sqlite:///{src}",
-                            connect_args={"timeout": 10, "check_same_thread": False}
-                        )
+                        active_sqlite_engines[db_id] = create_engine(f"sqlite:///{src}")
 
                     if db_id not in schema_memory:
                         schema_txt = ""
@@ -304,20 +269,8 @@ def run_experiment_loop():
                     gt_sql = q.get("ground_truth_query", q.get("query", ""))
                     question_text = q.get("question", "")
 
-                    if args.debug_hang:
-                        print(f"\n[DEBUG] START uid={qid} db_id={db_id}")
-                        print(f"[DEBUG] Question: {question_text[:250]}")
-                        print("[DEBUG] GT sqlite exec START")
+                    gt_success, gt_result = execute_query(sqlite_eng, gt_sql)
 
-                    # 1) GT exec (sqlite) with timeout
-                    gt_success, gt_result = execute_sqlite_with_timeout(
-                        sqlite_eng, gt_sql, args.sqlite_timeout_s
-                    )
-
-                    if args.debug_hang:
-                        print(f"[DEBUG] GT sqlite exec DONE (success={gt_success})")
-
-                    # 2) Generation
                     start = time.time()
                     try:
                         pred_sql = llm.generate_sql(question_text, schema_str)
@@ -325,32 +278,16 @@ def run_experiment_loop():
                         pred_sql = f"ERROR: {e}"
                     gen_time = time.time() - start
 
-                    if args.debug_hang:
-                        print(f"[DEBUG] GEN DONE uid={qid} in {gen_time:.2f}s")
-                        print("[DEBUG] PRED sqlite exec START")
+                    pred_success_sl, pred_result_sl = execute_query(sqlite_eng, pred_sql)
 
-                    # 3) Pred exec (sqlite) with timeout
-                    pred_success_sl, pred_result_sl = execute_sqlite_with_timeout(
-                        sqlite_eng, pred_sql, args.sqlite_timeout_s
-                    )
-
-                    if args.debug_hang:
-                        print(f"[DEBUG] PRED sqlite exec DONE (success={pred_success_sl})")
-
-                    # Retry (only if sqlite failed and not model ERROR)
+                    # One retry on normal SQL error (except OOM / wrapper ERROR)
                     if (not pred_success_sl and isinstance(pred_result_sl, str)
                         and not str(pred_sql).startswith("ERROR")
-                        and "out of memory" not in pred_result_sl.lower()
-                        and "TIMEOUT" not in pred_result_sl):
-                        if args.debug_hang:
-                            print(f"[DEBUG] RETRY uid={qid} (sqlite err: {str(pred_result_sl)[:200]})")
-
+                        and "out of memory" not in pred_result_sl.lower()):
                         retry_prompt = question_text + "\n\n" + build_fix_prompt(pred_sql, pred_result_sl)
                         try:
                             retry_sql = llm.generate_sql(retry_prompt, schema_str)
-                            retry_suc, retry_res = execute_sqlite_with_timeout(
-                                sqlite_eng, retry_sql, args.sqlite_timeout_s
-                            )
+                            retry_suc, retry_res = execute_query(sqlite_eng, retry_sql)
                             if retry_suc:
                                 pred_sql = retry_sql
                                 pred_success_sl = retry_suc
@@ -358,18 +295,8 @@ def run_experiment_loop():
                         except Exception:
                             pass
 
-                    # 4) Pred exec (postgres) — with statement_timeout
-                    if args.skip_pg_exec:
-                        pred_success_pg = False
-                    else:
-                        set_pg_statement_timeout(pg_engine, args.pg_timeout_ms)
-                        if args.debug_hang:
-                            print(f"[DEBUG] PRED pg exec START (timeout={args.pg_timeout_ms}ms)")
-                        pred_success_pg, _ = execute_query(pg_engine, pred_sql)
-                        if args.debug_hang:
-                            print("[DEBUG] PRED pg exec DONE")
+                    pred_success_pg, _ = execute_query(pg_engine, pred_sql)
 
-                    # 5) is_correct MUST remain
                     is_correct = (
                         gt_success and pred_success_sl and
                         compare_results(pred_result_sl, gt_result)
@@ -379,7 +306,7 @@ def run_experiment_loop():
                         "model": model_name,
                         "dataset": dataset_name,
                         "db_id": db_id,
-                        "question_id": qid,
+                        "question_id": qid,  # ✅ write our forced unique id
                         "complexity": q.get("complexity", ""),
                         "question": question_text,
                         "ground_truth_sql": gt_sql,
