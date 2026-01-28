@@ -10,6 +10,125 @@ from sqlalchemy import create_engine, text
 
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 
+# ---------------------------
+# NEW: Resource monitoring (CPU/RAM/GPU)
+# ---------------------------
+import threading
+
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
+try:
+    import torch
+except ImportError:
+    torch = None
+
+
+def _bytes_to_mb(x: int) -> float:
+    return float(x) / (1024.0 * 1024.0)
+
+
+class ResourceMonitor:
+    """
+    Lightweight background sampler for the current process.
+    Tracks peak:
+      - RAM RSS (bytes)
+      - CPU percent (process)
+    """
+    def __init__(self, sample_interval_s: float = 0.5):
+        self.sample_interval_s = float(sample_interval_s)
+        self._stop = threading.Event()
+        self._thread = None
+
+        self.peak_rss_bytes = 0
+        self.peak_cpu_percent = 0.0
+
+        self._proc = None
+        self._enabled = psutil is not None
+
+    def start(self):
+        if not self._enabled:
+            return
+        self._proc = psutil.Process(os.getpid())
+
+        # Prime cpu_percent for meaningful subsequent readings
+        try:
+            self._proc.cpu_percent(interval=None)
+        except Exception:
+            pass
+
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def _run(self):
+        while not self._stop.is_set():
+            try:
+                rss = self._proc.memory_info().rss
+                if rss > self.peak_rss_bytes:
+                    self.peak_rss_bytes = rss
+            except Exception:
+                pass
+
+            try:
+                cpu_p = self._proc.cpu_percent(interval=None)
+                if cpu_p > self.peak_cpu_percent:
+                    self.peak_cpu_percent = cpu_p
+            except Exception:
+                pass
+
+            self._stop.wait(self.sample_interval_s)
+
+    def stop(self):
+        if not self._enabled:
+            return
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=2.0)
+
+    def summary(self) -> dict:
+        if not self._enabled:
+            return {
+                "cpu_ram_available": False,
+                "note": "psutil not installed -> CPU/RAM monitoring unavailable."
+            }
+        return {
+            "cpu_ram_available": True,
+            "peak_ram_rss_mb": round(_bytes_to_mb(self.peak_rss_bytes), 2),
+            "peak_cpu_percent_process": round(self.peak_cpu_percent, 1),
+        }
+
+
+def gpu_reset_peaks():
+    if torch is None:
+        return
+    if not hasattr(torch, "cuda") or not torch.cuda.is_available():
+        return
+    try:
+        torch.cuda.reset_peak_memory_stats()
+    except Exception:
+        pass
+
+
+def gpu_summary() -> dict:
+    if torch is None:
+        return {"gpu_available": False, "note": "torch not installed -> GPU monitoring unavailable."}
+    if not hasattr(torch, "cuda") or not torch.cuda.is_available():
+        return {"gpu_available": False, "note": "CUDA not available -> GPU monitoring unavailable."}
+
+    try:
+        max_alloc = torch.cuda.max_memory_allocated()
+        max_resv = torch.cuda.max_memory_reserved() if hasattr(torch.cuda, "max_memory_reserved") else 0
+        return {
+            "gpu_available": True,
+            "peak_gpu_vram_allocated_mb": round(_bytes_to_mb(max_alloc), 2),
+            "peak_gpu_vram_reserved_mb": round(_bytes_to_mb(max_resv), 2),
+        }
+    except Exception as e:
+        return {"gpu_available": False, "note": f"GPU monitoring error: {e}"}
+
+
 # --- Setup Paths ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, ".."))
@@ -58,6 +177,9 @@ parser.add_argument("--sqlite_timeout_s", type=float, default=15.0)
 # Optional: skip PG exec
 parser.add_argument("--skip_pg_exec", action="store_true")
 
+# NEW: resource sampling interval (seconds)
+parser.add_argument("--resource_sample_s", type=float, default=0.5)
+
 args = parser.parse_args()
 
 MODELS_TO_TEST = (
@@ -69,10 +191,14 @@ MODELS_TO_TEST = (
 os.makedirs(args.results_dir, exist_ok=True)
 RESULTS_FILE = os.path.join(args.results_dir, f"results_{args.model}.csv")
 
+# NEW columns (Option B): will be filled for every row at the end (backfill)
 COLS = [
     "model", "dataset", "db_id", "question_id", "complexity", "question",
     "ground_truth_sql", "generated_sql", "gt_exec_success",
-    "pred_exec_success_pg", "pred_exec_success_sqlite", "is_correct", "generation_time"
+    "pred_exec_success_pg", "pred_exec_success_sqlite", "is_correct", "generation_time",
+    "total_runtime_s", "peak_ram_rss_mb", "peak_cpu_percent_process",
+    "peak_gpu_vram_allocated_mb", "peak_gpu_vram_reserved_mb",
+    "cpu_ram_available", "gpu_available"
 ]
 
 # --- Cache SQLite Paths ---
@@ -190,6 +316,23 @@ def execute_sqlite_with_timeout(sqlite_engine, sql: str, timeout_s: float):
         return False, f"ERROR: {e}"
 
 def run_experiment_loop():
+    # NEW: start monitoring (CPU/RAM) and reset GPU peaks
+    monitor = ResourceMonitor(sample_interval_s=args.resource_sample_s)
+    gpu_reset_peaks()
+    t0 = time.time()
+    monitor.start()
+
+    # Will be filled at the end and backfilled into all rows
+    run_metrics = {
+        "total_runtime_s": None,
+        "peak_ram_rss_mb": None,
+        "peak_cpu_percent_process": None,
+        "peak_gpu_vram_allocated_mb": None,
+        "peak_gpu_vram_reserved_mb": None,
+        "cpu_ram_available": None,
+        "gpu_available": None,
+    }
+
     print(f"🚀 Starting Optimization Experiment Loop for: {args.datasets}")
     print(f"💾 Results file: {RESULTS_FILE}")
 
@@ -201,6 +344,7 @@ def run_experiment_loop():
         pg_engine = get_engine("postgresql")
     except Exception as e:
         print(f"⚠️ Postgres Connection Error: {e}")
+        monitor.stop()
         return
 
     if not args.skip_pg_exec:
@@ -304,18 +448,10 @@ def run_experiment_loop():
                     gt_sql = q.get("ground_truth_query", q.get("query", ""))
                     question_text = q.get("question", "")
 
-                    if args.debug_hang:
-                        print(f"\n[DEBUG] START uid={qid} db_id={db_id}")
-                        print(f"[DEBUG] Question: {question_text[:250]}")
-                        print("[DEBUG] GT sqlite exec START")
-
                     # 1) GT exec (sqlite) with timeout
                     gt_success, gt_result = execute_sqlite_with_timeout(
                         sqlite_eng, gt_sql, args.sqlite_timeout_s
                     )
-
-                    if args.debug_hang:
-                        print(f"[DEBUG] GT sqlite exec DONE (success={gt_success})")
 
                     # 2) Generation
                     start = time.time()
@@ -325,26 +461,16 @@ def run_experiment_loop():
                         pred_sql = f"ERROR: {e}"
                     gen_time = time.time() - start
 
-                    if args.debug_hang:
-                        print(f"[DEBUG] GEN DONE uid={qid} in {gen_time:.2f}s")
-                        print("[DEBUG] PRED sqlite exec START")
-
                     # 3) Pred exec (sqlite) with timeout
                     pred_success_sl, pred_result_sl = execute_sqlite_with_timeout(
                         sqlite_eng, pred_sql, args.sqlite_timeout_s
                     )
-
-                    if args.debug_hang:
-                        print(f"[DEBUG] PRED sqlite exec DONE (success={pred_success_sl})")
 
                     # Retry (only if sqlite failed and not model ERROR)
                     if (not pred_success_sl and isinstance(pred_result_sl, str)
                         and not str(pred_sql).startswith("ERROR")
                         and "out of memory" not in pred_result_sl.lower()
                         and "TIMEOUT" not in pred_result_sl):
-                        if args.debug_hang:
-                            print(f"[DEBUG] RETRY uid={qid} (sqlite err: {str(pred_result_sl)[:200]})")
-
                         retry_prompt = question_text + "\n\n" + build_fix_prompt(pred_sql, pred_result_sl)
                         try:
                             retry_sql = llm.generate_sql(retry_prompt, schema_str)
@@ -363,11 +489,7 @@ def run_experiment_loop():
                         pred_success_pg = False
                     else:
                         set_pg_statement_timeout(pg_engine, args.pg_timeout_ms)
-                        if args.debug_hang:
-                            print(f"[DEBUG] PRED pg exec START (timeout={args.pg_timeout_ms}ms)")
                         pred_success_pg, _ = execute_query(pg_engine, pred_sql)
-                        if args.debug_hang:
-                            print("[DEBUG] PRED pg exec DONE")
 
                     # 5) is_correct MUST remain
                     is_correct = (
@@ -375,7 +497,8 @@ def run_experiment_loop():
                         compare_results(pred_result_sl, gt_result)
                     )
 
-                    all_results.append({
+                    # NEW: add placeholders for resource metrics (backfilled at end)
+                    row = {
                         "model": model_name,
                         "dataset": dataset_name,
                         "db_id": db_id,
@@ -389,7 +512,17 @@ def run_experiment_loop():
                         "pred_exec_success_sqlite": pred_success_sl,
                         "is_correct": is_correct,
                         "generation_time": round(gen_time, 4),
-                    })
+                        # placeholders:
+                        "total_runtime_s": None,
+                        "peak_ram_rss_mb": None,
+                        "peak_cpu_percent_process": None,
+                        "peak_gpu_vram_allocated_mb": None,
+                        "peak_gpu_vram_reserved_mb": None,
+                        "cpu_ram_available": None,
+                        "gpu_available": None,
+                    }
+
+                    all_results.append(row)
 
                     completed.add(key)
                     processed_since_flush += 1
@@ -400,17 +533,68 @@ def run_experiment_loop():
                 flush_now()
 
     finally:
+        # Stop monitor and compute run-level resource metrics
+        monitor.stop()
+        total_s = time.time() - t0
+        cpu_ram = monitor.summary()
+        gpu = gpu_summary()
+
+        run_metrics["total_runtime_s"] = round(total_s, 4)
+
+        run_metrics["cpu_ram_available"] = bool(cpu_ram.get("cpu_ram_available", False))
+        run_metrics["peak_ram_rss_mb"] = cpu_ram.get("peak_ram_rss_mb", None)
+        run_metrics["peak_cpu_percent_process"] = cpu_ram.get("peak_cpu_percent_process", None)
+
+        run_metrics["gpu_available"] = bool(gpu.get("gpu_available", False))
+        run_metrics["peak_gpu_vram_allocated_mb"] = gpu.get("peak_gpu_vram_allocated_mb", None)
+        run_metrics["peak_gpu_vram_reserved_mb"] = gpu.get("peak_gpu_vram_reserved_mb", None)
+
+        # Backfill into ALL rows (including any rows loaded from an existing CSV)
+        if all_results:
+            for r in all_results:
+                r["total_runtime_s"] = run_metrics["total_runtime_s"]
+                r["cpu_ram_available"] = run_metrics["cpu_ram_available"]
+                r["peak_ram_rss_mb"] = run_metrics["peak_ram_rss_mb"]
+                r["peak_cpu_percent_process"] = run_metrics["peak_cpu_percent_process"]
+                r["gpu_available"] = run_metrics["gpu_available"]
+                r["peak_gpu_vram_allocated_mb"] = run_metrics["peak_gpu_vram_allocated_mb"]
+                r["peak_gpu_vram_reserved_mb"] = run_metrics["peak_gpu_vram_reserved_mb"]
+
+        # Persist final results (overwrite with backfilled metrics)
         try:
             if all_results:
                 safe_write_results(pd.DataFrame(all_results, columns=COLS), RESULTS_FILE)
         except Exception:
             pass
 
-        for eng in active_sqlite_engines.values():
-            try:
-                eng.dispose()
-            except Exception:
-                pass
+        # Dispose sqlite engines
+        try:
+            for eng in active_sqlite_engines.values():
+                try:
+                    eng.dispose()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # Print final performance metrics
+        print("\n" + "=" * 70)
+        print("📊 FINAL PERFORMANCE METRICS (Efficiency: time & resources)")
+        print("=" * 70)
+        print(f"Total runtime: {run_metrics['total_runtime_s']} s")
+
+        if run_metrics["cpu_ram_available"]:
+            print(f"Peak RAM (RSS): {run_metrics['peak_ram_rss_mb']} MB")
+            print(f"Peak CPU% (process): {run_metrics['peak_cpu_percent_process']}%")
+        else:
+            print(cpu_ram.get("note", "CPU/RAM metrics unavailable."))
+
+        if run_metrics["gpu_available"]:
+            print(f"Peak GPU VRAM allocated: {run_metrics['peak_gpu_vram_allocated_mb']} MB")
+            print(f"Peak GPU VRAM reserved: {run_metrics['peak_gpu_vram_reserved_mb']} MB")
+        else:
+            print(gpu.get("note", "GPU metrics unavailable."))
+        print("=" * 70)
 
     print(f"\n🏁 Finished! Results saved to: {RESULTS_FILE}")
 
