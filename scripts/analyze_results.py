@@ -10,6 +10,17 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, ".."))
 results_dir = os.path.join(project_root, "results")
 
+# ---------------------------
+# NEW: Consistent colors across all plots
+# ---------------------------
+PALETTE_NAME = "viridis"
+
+def get_model_palette(df):
+    # stable ordering so colors don't swap between runs
+    models = sorted(df["model"].dropna().unique().tolist())
+    colors = sns.color_palette(PALETTE_NAME, n_colors=len(models))
+    return {m: c for m, c in zip(models, colors)}
+
 def load_data():
     """Loads and merges all result CSVs found in the results folder."""
     csv_files = glob.glob(os.path.join(results_dir, "*.csv"))
@@ -62,13 +73,6 @@ def analyze_difficulty_distribution(df):
 def analyze_performance(df):
     print_header("2. MODEL PERFORMANCE (Accuracy & Latency)")
 
-    # Group by Model and Dataset
-    # We calculate:
-    # - Accuracy: Mean of 'is_correct'
-    # - SQLite Exec: Mean of 'pred_exec_success_sqlite'
-    # - PG Exec: Mean of 'pred_exec_success_pg'
-    # - Latency: Mean of 'generation_time'
-
     metrics = df.groupby(['model', 'dataset']).agg({
         'is_correct': 'mean',
         'pred_exec_success_sqlite': 'mean',
@@ -83,24 +87,18 @@ def analyze_performance(df):
     metrics['Postgres Exec %'] = (metrics['pred_exec_success_pg'] * 100).round(2)
     metrics['Avg Time (s)'] = metrics['generation_time'].round(4)
 
-    # Select clean columns to display
     display_cols = ['samples', 'Accuracy %', 'SQLite Exec %', 'Postgres Exec %', 'Avg Time (s)']
     print(metrics[display_cols])
 
 def analyze_dialect_robustness(df):
     print_header("3. DIALECT ROBUSTNESS (Postgres vs SQLite)")
 
-    # Logic: If it executes in SQLite but fails in Postgres,
-    # the model is likely generating SQLite-specific syntax (hallucination).
-
-    # Filter only rows where code executed in SQLite
     sqlite_valid = df[df['pred_exec_success_sqlite'] == True].copy()
 
     if sqlite_valid.empty:
         print("No queries executed successfully in SQLite to compare.")
         return
 
-    # Group by model
     robustness = sqlite_valid.groupby('model').agg({
         'pred_exec_success_pg': 'mean'
     })
@@ -114,7 +112,6 @@ def analyze_dialect_robustness(df):
 def head_to_head_comparison(df):
     print_header("4. HEAD-TO-HEAD SUMMARY")
 
-    # Aggregate globally by model
     summary = df.groupby('model').agg({
         'is_correct': 'mean',
         'generation_time': 'mean',
@@ -130,19 +127,135 @@ def head_to_head_comparison(df):
         time = f"{row['generation_time']:.4f}s"
         print(f"{model:<20} | {acc:<10} | {exe:<10} | {time:<10}")
 
+# ---------------------------
+# NEW: Resource metrics analysis (Option B columns)
+# ---------------------------
+def analyze_resource_metrics(df):
+    """
+    Reads run-level resource metrics columns that were added to the CSV (Option B).
+    Because they are backfilled per-run, we can summarize using max/first per model.
+    """
+    print_header("5. RESOURCE METRICS (CPU/RAM/GPU)")
+
+    needed = [
+        "total_runtime_s",
+        "peak_ram_rss_mb",
+        "peak_cpu_percent_process",
+        "peak_gpu_vram_allocated_mb",
+        "peak_gpu_vram_reserved_mb",
+        "cpu_ram_available",
+        "gpu_available",
+        "model",
+    ]
+
+    missing = [c for c in needed if c not in df.columns]
+    if missing:
+        print("⚠️ Resource columns not found in the CSV.")
+        print("Missing:", missing)
+        print("Tip: Make sure you re-ran run_experiment.py after adding Option B columns, "
+              "and the new CSVs are inside the results folder.")
+        return
+
+    # one line per model (take max; values are same across rows in a run)
+    res = df.groupby("model").agg({
+        "total_runtime_s": "max",
+        "peak_ram_rss_mb": "max",
+        "peak_cpu_percent_process": "max",
+        "peak_gpu_vram_allocated_mb": "max",
+        "peak_gpu_vram_reserved_mb": "max",
+        "cpu_ram_available": "max",
+        "gpu_available": "max",
+        "question_id": "count" if "question_id" in df.columns else "size"
+    }).rename(columns={"question_id": "samples"})
+
+    # nicer formatting
+    res["total_runtime_s"] = res["total_runtime_s"].round(2)
+    res["peak_ram_rss_mb"] = res["peak_ram_rss_mb"].round(2)
+    res["peak_cpu_percent_process"] = res["peak_cpu_percent_process"].round(1)
+    res["peak_gpu_vram_allocated_mb"] = res["peak_gpu_vram_allocated_mb"].round(2)
+    res["peak_gpu_vram_reserved_mb"] = res["peak_gpu_vram_reserved_mb"].round(2)
+
+    cols = [
+        "samples",
+        "total_runtime_s",
+        "peak_ram_rss_mb",
+        "peak_cpu_percent_process",
+        "peak_gpu_vram_allocated_mb",
+        "peak_gpu_vram_reserved_mb",
+        "cpu_ram_available",
+        "gpu_available",
+    ]
+    print(res[cols])
+
+def generate_resource_charts(df):
+    """
+    Saves charts into results_dir for the resource metrics (if columns exist).
+    Uses consistent model colors across all plots.
+    """
+    needed = {"model", "peak_ram_rss_mb", "peak_gpu_vram_allocated_mb", "total_runtime_s"}
+    if not needed.issubset(set(df.columns)):
+        return  # silently skip if not available
+
+    model_palette = get_model_palette(df)
+
+    # Aggregate per model
+    res = df.groupby("model").agg({
+        "peak_ram_rss_mb": "max",
+        "peak_gpu_vram_allocated_mb": "max",
+        "total_runtime_s": "max",
+    }).reset_index()
+
+    # RAM chart
+    plt.figure(figsize=(8, 5))
+    sns.barplot(data=res, x="model", y="peak_ram_rss_mb", hue="model", palette=model_palette, legend=False)
+    plt.title("Peak RAM (RSS) by Model")
+    plt.ylabel("Peak RAM (MB)")
+    plt.xlabel("Model")
+    out_path = os.path.join(results_dir, "peak_ram_by_model.png")
+    plt.tight_layout()
+    plt.savefig(out_path)
+    plt.close()
+    print(f"\n📊 Resource chart saved to: {out_path}")
+
+    # GPU chart (only if there are non-null values)
+    if res["peak_gpu_vram_allocated_mb"].notna().any():
+        plt.figure(figsize=(8, 5))
+        sns.barplot(data=res, x="model", y="peak_gpu_vram_allocated_mb", hue="model", palette=model_palette, legend=False)
+        plt.title("Peak GPU VRAM Allocated by Model")
+        plt.ylabel("Peak GPU VRAM Allocated (MB)")
+        plt.xlabel("Model")
+        out_path = os.path.join(results_dir, "peak_gpu_vram_by_model.png")
+        plt.tight_layout()
+        plt.savefig(out_path)
+        plt.close()
+        print(f"📊 Resource chart saved to: {out_path}")
+
+    # Runtime chart
+    plt.figure(figsize=(8, 5))
+    sns.barplot(data=res, x="model", y="total_runtime_s", hue="model", palette=model_palette, legend=False)
+    plt.title("Total Runtime by Model")
+    plt.ylabel("Runtime (s)")
+    plt.xlabel("Model")
+    out_path = os.path.join(results_dir, "runtime_by_model.png")
+    plt.tight_layout()
+    plt.savefig(out_path)
+    plt.close()
+    print(f"📊 Resource chart saved to: {out_path}")
+
 def generate_charts(df):
     """Generates a chart image if libraries are available"""
     try:
         sns.set_theme(style="whitegrid")
 
+        model_palette = get_model_palette(df)
+
         # Plot 1: Accuracy by Complexity
         plt.figure(figsize=(10, 6))
 
-        # Calculate accuracy by model and complexity
         acc_by_comp = df.groupby(['model', 'complexity'], observed=False)['is_correct'].mean().reset_index()
         acc_by_comp['is_correct'] *= 100
 
-        sns.barplot(data=acc_by_comp, x='complexity', y='is_correct', hue='model', palette="viridis")
+        sns.barplot(data=acc_by_comp, x='complexity', y='is_correct', hue='model', palette=model_palette)
         plt.title("Model Accuracy by Query Complexity")
         plt.ylabel("Accuracy (%)")
         plt.xlabel("Complexity Level")
@@ -166,4 +279,9 @@ if __name__ == "__main__":
     analyze_performance(df)
     analyze_dialect_robustness(df)
     head_to_head_comparison(df)
+
+    # NEW (only extra): resource metrics + charts
+    analyze_resource_metrics(df)
+    generate_resource_charts(df)
+
     generate_charts(df)
