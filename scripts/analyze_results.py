@@ -5,13 +5,20 @@ import sys
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# ---------------------------
+# Display settings (avoid "...")
+# ---------------------------
+pd.set_option("display.max_columns", None)
+pd.set_option("display.width", 200)
+pd.set_option("display.max_colwidth", None)
+
 # Set paths
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, ".."))
 results_dir = os.path.join(project_root, "results")
 
 # ---------------------------
-# NEW: Consistent colors across all plots
+# Consistent colors across all plots
 # ---------------------------
 PALETTE_NAME = "viridis"
 
@@ -45,8 +52,8 @@ def load_data():
 
     # Enforce Complexity Order
     complexity_order = ["Easy", "Medium", "Hard", "Extra Hard"]
-    full_df['complexity'] = pd.Categorical(
-        full_df['complexity'],
+    full_df["complexity"] = pd.Categorical(
+        full_df["complexity"],
         categories=complexity_order,
         ordered=True
     )
@@ -54,68 +61,64 @@ def load_data():
     return full_df
 
 def print_header(title):
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print(f" {title}")
-    print("="*60)
+    print("=" * 60)
 
 def analyze_difficulty_distribution(df):
     print_header("1. COMPLEXITY DISTRIBUTION (Count of Questions)")
 
-    # Group by Dataset and Complexity
-    dist = df.groupby(['dataset', 'complexity'], observed=False).size().unstack(fill_value=0)
+    dist = df.groupby(["dataset", "complexity"], observed=False).size().unstack(fill_value=0)
+    dist["Total"] = dist.sum(axis=1)
 
-    # Calculate Total
-    dist['Total'] = dist.sum(axis=1)
-
-    print(dist)
+    print(dist.to_string())
     print("\nObservation: This shows how balanced your test set was per dataset.")
 
 def analyze_performance(df):
     print_header("2. MODEL PERFORMANCE (Accuracy & Latency)")
 
-    metrics = df.groupby(['model', 'dataset']).agg({
-        'is_correct': 'mean',
-        'pred_exec_success_sqlite': 'mean',
-        'pred_exec_success_pg': 'mean',
-        'generation_time': 'mean',
-        'question_id': 'count' # Count total samples
-    }).rename(columns={'question_id': 'samples'})
+    metrics = df.groupby(["model", "dataset"]).agg({
+        "is_correct": "mean",
+        "pred_exec_success_sqlite": "mean",
+        "pred_exec_success_pg": "mean",
+        "generation_time": "mean",
+        "question_id": "count"
+    }).rename(columns={"question_id": "samples"})
 
-    # Convert fractions to percentages for readability
-    metrics['Accuracy %'] = (metrics['is_correct'] * 100).round(2)
-    metrics['SQLite Exec %'] = (metrics['pred_exec_success_sqlite'] * 100).round(2)
-    metrics['Postgres Exec %'] = (metrics['pred_exec_success_pg'] * 100).round(2)
-    metrics['Avg Time (s)'] = metrics['generation_time'].round(4)
+    metrics["Accuracy %"] = (metrics["is_correct"] * 100).round(2)
+    metrics["SQLite Exec %"] = (metrics["pred_exec_success_sqlite"] * 100).round(2)
+    metrics["Postgres Exec %"] = (metrics["pred_exec_success_pg"] * 100).round(2)
+    metrics["Avg Time (s)"] = metrics["generation_time"].round(4)
 
-    display_cols = ['samples', 'Accuracy %', 'SQLite Exec %', 'Postgres Exec %', 'Avg Time (s)']
-    print(metrics[display_cols])
+    display_cols = ["samples", "Accuracy %", "SQLite Exec %", "Postgres Exec %", "Avg Time (s)"]
+    print(metrics[display_cols].to_string())
 
 def analyze_dialect_robustness(df):
     print_header("3. DIALECT ROBUSTNESS (Postgres vs SQLite)")
 
-    sqlite_valid = df[df['pred_exec_success_sqlite'] == True].copy()
+    sqlite_valid = df[df["pred_exec_success_sqlite"] == True].copy()
 
     if sqlite_valid.empty:
         print("No queries executed successfully in SQLite to compare.")
         return
 
-    robustness = sqlite_valid.groupby('model').agg({
-        'pred_exec_success_pg': 'mean'
+    robustness = sqlite_valid.groupby("model").agg({
+        "pred_exec_success_pg": "mean"
     })
 
-    robustness['PG Compatibility %'] = (robustness['pred_exec_success_pg'] * 100).round(2)
+    robustness["PG Compatibility %"] = (robustness["pred_exec_success_pg"] * 100).round(2)
 
     print("Of queries that worked in SQLite, what % also worked in Postgres?")
-    print(robustness[['PG Compatibility %']])
+    print(robustness[["PG Compatibility %"]].to_string())
     print("\nNote: Lower percentages indicate the model is relying on SQLite-specific loose typing or syntax.")
 
 def head_to_head_comparison(df):
     print_header("4. HEAD-TO-HEAD SUMMARY")
 
-    summary = df.groupby('model').agg({
-        'is_correct': 'mean',
-        'generation_time': 'mean',
-        'pred_exec_success_sqlite': 'mean'
+    summary = df.groupby("model").agg({
+        "is_correct": "mean",
+        "generation_time": "mean",
+        "pred_exec_success_sqlite": "mean"
     })
 
     print(f"{'Model':<20} | {'Accuracy':<10} | {'Exec Rate':<10} | {'Time/Query':<10}")
@@ -124,40 +127,52 @@ def head_to_head_comparison(df):
     for model, row in summary.iterrows():
         acc = f"{row['is_correct']*100:.2f}%"
         exe = f"{row['pred_exec_success_sqlite']*100:.2f}%"
-        time = f"{row['generation_time']:.4f}s"
-        print(f"{model:<20} | {acc:<10} | {exe:<10} | {time:<10}")
+        t = f"{row['generation_time']:.4f}s"
+        print(f"{model:<20} | {acc:<10} | {exe:<10} | {t:<10}")
 
 # ---------------------------
-# NEW: Resource metrics analysis (Option B columns)
+# Resource metrics analysis (works even with mixed CSVs)
 # ---------------------------
+RESOURCE_COLS = [
+    "total_runtime_s",
+    "peak_ram_rss_mb",
+    "peak_cpu_percent_process",
+    "peak_gpu_vram_allocated_mb",
+    "peak_gpu_vram_reserved_mb",
+    "cpu_ram_available",
+    "gpu_available",
+]
+
+def _resource_subset(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Returns only rows that contain resource metrics.
+    This fixes the case where results_dir has mixed CSVs (old ones without resource cols).
+    """
+    # If the columns don't exist at all, return empty
+    for c in ["model"] + RESOURCE_COLS:
+        if c not in df.columns:
+            return df.iloc[0:0].copy()
+
+    sub = df.copy()
+
+    # Ensure numeric where possible
+    for c in RESOURCE_COLS:
+        sub[c] = pd.to_numeric(sub[c], errors="coerce")
+
+    # Keep only rows where runtime exists (means the row came from a run with Option B)
+    sub = sub[sub["total_runtime_s"].notna()]
+    return sub
+
 def analyze_resource_metrics(df):
-    """
-    Reads run-level resource metrics columns that were added to the CSV (Option B).
-    Because they are backfilled per-run, we can summarize using max/first per model.
-    """
     print_header("5. RESOURCE METRICS (CPU/RAM/GPU)")
 
-    needed = [
-        "total_runtime_s",
-        "peak_ram_rss_mb",
-        "peak_cpu_percent_process",
-        "peak_gpu_vram_allocated_mb",
-        "peak_gpu_vram_reserved_mb",
-        "cpu_ram_available",
-        "gpu_available",
-        "model",
-    ]
-
-    missing = [c for c in needed if c not in df.columns]
-    if missing:
-        print("⚠️ Resource columns not found in the CSV.")
-        print("Missing:", missing)
-        print("Tip: Make sure you re-ran run_experiment.py after adding Option B columns, "
-              "and the new CSVs are inside the results folder.")
+    rdf = _resource_subset(df)
+    if rdf.empty:
+        print("⚠️ No resource metrics found in the loaded CSVs.")
+        print("Tip: Keep the new Option-B CSVs in results/, or delete the old CSVs to avoid mixing.")
         return
 
-    # one line per model (take max; values are same across rows in a run)
-    res = df.groupby("model").agg({
+    res = rdf.groupby("model").agg({
         "total_runtime_s": "max",
         "peak_ram_rss_mb": "max",
         "peak_cpu_percent_process": "max",
@@ -165,10 +180,9 @@ def analyze_resource_metrics(df):
         "peak_gpu_vram_reserved_mb": "max",
         "cpu_ram_available": "max",
         "gpu_available": "max",
-        "question_id": "count" if "question_id" in df.columns else "size"
+        "question_id": "count" if "question_id" in rdf.columns else "size"
     }).rename(columns={"question_id": "samples"})
 
-    # nicer formatting
     res["total_runtime_s"] = res["total_runtime_s"].round(2)
     res["peak_ram_rss_mb"] = res["peak_ram_rss_mb"].round(2)
     res["peak_cpu_percent_process"] = res["peak_cpu_percent_process"].round(1)
@@ -185,21 +199,20 @@ def analyze_resource_metrics(df):
         "cpu_ram_available",
         "gpu_available",
     ]
-    print(res[cols])
+    print(res[cols].to_string())
 
 def generate_resource_charts(df):
-    """
-    Saves charts into results_dir for the resource metrics (if columns exist).
-    Uses consistent model colors across all plots.
-    """
     needed = {"model", "peak_ram_rss_mb", "peak_gpu_vram_allocated_mb", "total_runtime_s"}
     if not needed.issubset(set(df.columns)):
-        return  # silently skip if not available
+        return
 
-    model_palette = get_model_palette(df)
+    rdf = _resource_subset(df)
+    if rdf.empty:
+        return
 
-    # Aggregate per model
-    res = df.groupby("model").agg({
+    model_palette = get_model_palette(rdf)
+
+    res = rdf.groupby("model").agg({
         "peak_ram_rss_mb": "max",
         "peak_gpu_vram_allocated_mb": "max",
         "total_runtime_s": "max",
@@ -246,23 +259,23 @@ def generate_charts(df):
     """Generates a chart image if libraries are available"""
     try:
         sns.set_theme(style="whitegrid")
-
         model_palette = get_model_palette(df)
 
-        # Plot 1: Accuracy by Complexity
         plt.figure(figsize=(10, 6))
 
-        acc_by_comp = df.groupby(['model', 'complexity'], observed=False)['is_correct'].mean().reset_index()
-        acc_by_comp['is_correct'] *= 100
+        acc_by_comp = df.groupby(["model", "complexity"], observed=False)["is_correct"].mean().reset_index()
+        acc_by_comp["is_correct"] *= 100
 
-        sns.barplot(data=acc_by_comp, x='complexity', y='is_correct', hue='model', palette=model_palette)
+        sns.barplot(data=acc_by_comp, x="complexity", y="is_correct", hue="model", palette=model_palette)
         plt.title("Model Accuracy by Query Complexity")
         plt.ylabel("Accuracy (%)")
         plt.xlabel("Complexity Level")
         plt.ylim(0, 100)
 
         output_path = os.path.join(results_dir, "benchmark_chart.png")
+        plt.tight_layout()
         plt.savefig(output_path)
+        plt.close()
         print(f"\n📊 Chart saved to: {output_path}")
 
     except ImportError:
@@ -272,7 +285,6 @@ def generate_charts(df):
 
 if __name__ == "__main__":
     df = load_data()
-
     print(f"Loaded {len(df)} total records from {results_dir}")
 
     analyze_difficulty_distribution(df)
@@ -280,7 +292,6 @@ if __name__ == "__main__":
     analyze_dialect_robustness(df)
     head_to_head_comparison(df)
 
-    # NEW (only extra): resource metrics + charts
     analyze_resource_metrics(df)
     generate_resource_charts(df)
 
