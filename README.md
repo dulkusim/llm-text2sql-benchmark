@@ -170,13 +170,36 @@ Once the infrastructure is ready, you can run the benchmarking experiments.
 
 To prevent GPU memory issues (OOM) on 16GB VRAM cards (e.g., T4), run models one at a time.
 
+
 ```bash
 # Run TinyLlama (1.1B)
-python experiments/run_experiment.py --model TinyLlama
+python experiments/run_experiment.py \
+  --model tinylama \
+  --datasets spider atis geography custom \
+  --n 100 \
+  --results_dir "/content/drive/MyDrive/text2sql_results" \
+  --flush_every 1 \
+  --gt_timeout 20 \
+  --gt_pg_timeout_ms 140000 \
+  --pred_timeout 20 \
+  --pred_pg_timeout_ms 30000 \
+  --pg_timeout_ms 20000
+  ```
 
+```bash
 # Run Qwen (1.5B)
-python experiments/run_experiment.py --model Qwen
-```
+python experiments/run_experiment.py \
+  --model qwen \
+  --datasets spider atis geography custom \
+  --n 100 \
+  --results_dir "/content/drive/MyDrive/text2sql_results" \
+  --flush_every 1 \
+  --gt_timeout 20 \
+  --gt_pg_timeout_ms 140000 \
+  --pred_timeout 20 \
+  --pred_pg_timeout_ms 30000 \
+  --pg_timeout_ms 20000
+  ``` 
 
 ---
 
@@ -224,6 +247,14 @@ python scripts/analyze_results.py
 
 ---
 
+## Data 
+Due to the large data size they will not be commited on GitHub. Below is the shared link on Google Drive.
+https://drive.google.com/drive/folders/1d2gAFFK56cWwWES6HgkzIPURLP5yP7yU?usp=sharing
+
+---
+
 ## License
 
 This project is licensed under the MIT License.
+
+
