@@ -1,6 +1,7 @@
 import os
 import re
 import math
+import time
 from decimal import Decimal
 from sqlalchemy import text
 
@@ -49,7 +50,6 @@ def _semi_compact_schema(schema_text: str, max_tables: int | None = None) -> str
 
         m = create_re.match(line)
         if m:
-            # start CREATE TABLE
             if max_tables is not None and tables_kept >= max_tables:
                 break
 
@@ -60,36 +60,28 @@ def _semi_compact_schema(schema_text: str, max_tables: int | None = None) -> str
             continue
 
         if in_create:
-            # end of CREATE TABLE block
             if line.startswith(")"):
                 out.append(");")
-                out.append("")  # blank line between tables
+                out.append("")
                 in_create = False
                 current_table = None
                 continue
 
-            # Keep FK lines (helpful for joins)
             if "foreign key" in low or "references" in low:
-                # normalize spacing
                 out.append(re.sub(r"\s+", " ", line).rstrip(",") + ",")
                 continue
 
-            # Skip constraints noise
             if low.startswith(("primary key", "unique", "constraint", "check")):
                 continue
 
-            # Keep only the column name (and optionally its type very lightly)
-            # Typical column line: col_name TYPE ...
             col = line.split()[0].strip('`"').rstrip(",")
             if col and col.replace("_", "").isalnum():
                 out.append(f"  {col},")
             continue
 
-    # cleanup trailing commas before ");"
     cleaned = []
-    for i, ln in enumerate(out):
+    for ln in out:
         if ln.strip() == ");":
-            # remove trailing comma from previous line if exists
             if cleaned and cleaned[-1].rstrip().endswith(","):
                 cleaned[-1] = cleaned[-1].rstrip().rstrip(",")
         cleaned.append(ln)
@@ -98,23 +90,9 @@ def _semi_compact_schema(schema_text: str, max_tables: int | None = None) -> str
 
 
 def get_schema_string(dataset_db_id: str, mode: str = "semi") -> str:
-    """
-    Returns schema DDL string for a db_id.
-
-    Tries, in order:
-      1) data/<db_id>-db.sql
-      2) data/database/<db_id>/schema.sql
-      3) any .sql file inside data/database/<db_id>/
-      4) derive schema from a .sqlite file inside data/database/<db_id>/
-
-    mode:
-      - "full": full schema text
-      - "semi": semi-compact (table+columns + FK/REFERENCES)  <-- recommended
-    """
     import glob
     import sqlite3
 
-    # --- 1) and 2) original expected paths ---
     candidates = [
         os.path.join("data", f"{dataset_db_id}-db.sql"),
         os.path.join("data", "database", dataset_db_id, "schema.sql"),
@@ -127,19 +105,14 @@ def get_schema_string(dataset_db_id: str, mode: str = "semi") -> str:
                 schema_text = f.read()
             break
 
-    # --- 3) any .sql inside the db folder (car_1.sql, TinyCollege.sql, etc.) ---
     if schema_text is None:
         db_dir = os.path.join("data", "database", dataset_db_id)
         sql_files = sorted(glob.glob(os.path.join(db_dir, "*.sql")))
-        # προτίμησε schema.sql αν υπάρχει (ακόμα κι αν δεν ήταν στα candidates),
-        # αλλιώς πάρε το πρώτο .sql που βρήκες
         if sql_files:
-            # αν κάπου υπάρχει schema.sql, βάλ' το πρώτο
             sql_files = sorted(sql_files, key=lambda x: (os.path.basename(x) != "schema.sql", x))
             with open(sql_files[0], "r", encoding="utf-8") as f:
                 schema_text = f.read()
 
-    # --- 4) dump schema from sqlite_master if only .sqlite exists ---
     if schema_text is None:
         db_dir = os.path.join("data", "database", dataset_db_id)
         sqlite_files = sorted(glob.glob(os.path.join(db_dir, "*.sqlite")))
@@ -173,7 +146,6 @@ def get_schema_string(dataset_db_id: str, mode: str = "semi") -> str:
             f"Looked for *-db.sql / schema.sql / any .sql / any .sqlite."
         )
 
-    # Apply mode
     if mode == "full":
         return schema_text
     elif mode == "semi":
@@ -183,40 +155,113 @@ def get_schema_string(dataset_db_id: str, mode: str = "semi") -> str:
 
 
 # -------------------------------------------------------------------
+# SQL normalization (ATIS fix)
+# -------------------------------------------------------------------
+_double_quote_literal = re.compile(r'"([^"]*)"')
+
+def normalize_sql_literals(sql: str) -> str:
+    """
+    Convert "TEXT" -> 'TEXT'. Escapes single quotes inside TEXT.
+    Assumption: datasets like ATIS rarely rely on quoted identifiers.
+    """
+    if sql is None:
+        return sql
+    s = str(sql)
+    return _double_quote_literal.sub(lambda m: "'" + m.group(1).replace("'", "''") + "'", s)
+
+
+# -------------------------------------------------------------------
 # Query execution
 # -------------------------------------------------------------------
-def execute_query(engine, query: str):
+def execute_query(
+    engine,
+    query: str,
+    *,
+    timeout_s: float = 25.0,
+    pg_timeout_ms: int = 15000,
+    row_cap: int = 2000,
+    truncate_is_error: bool = True
+):
     """
     Execute SQL on a SQLAlchemy engine.
     Returns: (success: bool, result_or_error: list[tuple] | str)
 
+    - Normalizes ATIS-style string literals: "TEXT" -> 'TEXT'
+    - For SQLite: uses progress handler to enforce wall-clock timeout
+    - For Postgres: sets LOCAL statement_timeout
     - Always rolls back.
-    - If query is an ERROR_ marker, fail immediately.
+    - Caps result size to row_cap (fetchmany(row_cap + 1)).
+    - If truncate_is_error=True and result exceeds row_cap -> returns False.
+      If truncate_is_error=False and result exceeds row_cap -> returns True (but truncated result returned).
     """
     if query is None:
         return False, "Query is None"
 
-    q = str(query).strip()
+    q = normalize_sql_literals(str(query)).strip()
 
-    # fast-fail if you stored generation error in the SQL string
-    if q.startswith("ERROR_") or q.startswith("❌") or q.startswith("FAILED"):
+    low = q.lower()
+    if q.startswith("ERROR_") or q.startswith("❌") or q.startswith("FAILED") or low.startswith("error:"):
         return False, q
+
+    try:
+        dialect = getattr(engine, "dialect", None)
+        dialect_name = getattr(dialect, "name", "") if dialect else ""
+    except Exception:
+        dialect_name = ""
 
     try:
         with engine.connect() as connection:
             trans = connection.begin()
+            raw_sqlite = None
+            start_time = None
+
             try:
+                if dialect_name == "postgresql":
+                    try:
+                        connection.execute(text(f"SET LOCAL statement_timeout = {int(pg_timeout_ms)};"))
+                    except Exception:
+                        pass
+
+                if dialect_name == "sqlite":
+                    try:
+                        start_time = time.time()
+                        raw_sqlite = connection.connection
+
+                        def progress_handler():
+                            return 1 if (time.time() - start_time) > float(timeout_s) else 0
+
+                        raw_sqlite.set_progress_handler(progress_handler, 100000)
+                    except Exception:
+                        raw_sqlite = None
+
                 result_proxy = connection.execute(text(q))
+
                 if result_proxy.returns_rows:
-                    rows = result_proxy.fetchall()
+                    rows = result_proxy.fetchmany(int(row_cap) + 1)
+                    truncated = len(rows) > int(row_cap)
+                    rows = rows[:int(row_cap)]
                     results = [tuple(r) for r in rows]
-                else:
-                    results = []
+
+                    trans.rollback()
+
+                    if truncated and truncate_is_error:
+                        return False, f"Result too large (truncated at {row_cap} rows)"
+                    return True, results
+
                 trans.rollback()
-                return True, results
+                return True, []
+
             except Exception as e:
                 trans.rollback()
                 return False, str(e)
+
+            finally:
+                if raw_sqlite is not None:
+                    try:
+                        raw_sqlite.set_progress_handler(None, 0)
+                    except Exception:
+                        pass
+
     except Exception as e:
         return False, str(e)
 
@@ -250,11 +295,6 @@ def _normalize_value(v):
 
 
 def compare_results(result_1, result_2, float_tol: float = 1e-6) -> bool:
-    """
-    - Ignore row order (sort rows)
-    - Preserve column order
-    - Tolerate float differences
-    """
     if not isinstance(result_1, list) or not isinstance(result_2, list):
         return False
 
@@ -304,9 +344,6 @@ def compare_results(result_1, result_2, float_tol: float = 1e-6) -> bool:
 # Helper: build an error-feedback prompt for one retry
 # -------------------------------------------------------------------
 def build_fix_prompt(original_sql: str, error_msg: str) -> str:
-    """
-    Message chunk you can append to the user content for a single retry.
-    """
     return (
         "The previous SQL failed to execute with the following error:\n"
         f"{error_msg}\n\n"
