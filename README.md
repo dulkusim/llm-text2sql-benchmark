@@ -1,4 +1,3 @@
-````markdown
 # Evaluating Small Language Models (SLMs) for Text-to-SQL
 
 This repository contains the official implementation for the project **"Evaluating Small Language Models for Text-to-SQL: Performance, Latency, and Dialect Robustness."**
@@ -7,7 +6,7 @@ We present a unified evaluation framework to benchmark compact LLMs (**Qwen2.5-1
 
 ---
 
-## 📋 Features
+## Features
 
 - **Dual-Database Support:** Automatically mirrors datasets between **SQLite** (for schema introspection) and **PostgreSQL** (for production-grade execution).
 - **Cross-Dialect Robustness:** Handles case-sensitivity normalization to ensure queries work on strict RDBMS engines.
@@ -17,7 +16,7 @@ We present a unified evaluation framework to benchmark compact LLMs (**Qwen2.5-1
 
 ---
 
-## 🛠️ Prerequisites
+## Prerequisites
 
 Before running the project, ensure you have the following installed:
 
@@ -27,7 +26,7 @@ Before running the project, ensure you have the following installed:
 
 ---
 
-## 🚀 Installation & Setup
+## Installation & Setup
 
 ### 1. Environment Setup
 
@@ -107,7 +106,7 @@ python agent/agent.py
 
 ---
 
-## 📥 Data Ingestion & Verification
+## Data Ingestion & Verification
 
 This project requires loading external datasets (Spider, ATIS, Geography) into the active databases.
 
@@ -163,7 +162,7 @@ Result: [(46,)]
 
 ---
 
-## 🧪 Running Experiments
+## Running Experiments
 
 Once the infrastructure is ready, you can run the benchmarking experiments.
 
@@ -191,7 +190,7 @@ python scripts/analyze_results.py
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 - **`agent/`** — Model integration and inference logic  
   - `agent.py`: Diagnostic script to verify database connectivity.  
@@ -225,6 +224,6 @@ python scripts/analyze_results.py
 
 ---
 
-📄 License
+## License
 
 This project is licensed under the MIT License.
