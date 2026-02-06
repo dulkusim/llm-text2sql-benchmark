@@ -1,12 +1,12 @@
 # Comparison between text-to-SQL methods
 
-## Team Information
+## Team Information (Team ID: 22)
 
-| Name                  | Team ID | Student ID |
-|-----------------------|---------|------------|
-| Simranjit Singh Dulku | 22      | 03121105   |
-| Fotis Monanteros      | 22      | 03121912   |
-| Athanasios Markou     | 22      | 03123618   |
+| Name                  | Student ID |
+|-----------------------|------------|
+| Simranjit Singh Dulku | 03121105   |
+| Fotis Monanteros      | 03121912   |
+| Athanasios Markou     | 03123618   |
 
 ---
 
