@@ -23,7 +23,6 @@ results_dir = os.path.join(project_root, "results")
 PALETTE_NAME = "viridis"
 
 def get_model_palette(df):
-    # stable ordering so colors don't swap between runs
     models = sorted(df["model"].dropna().unique().tolist())
     colors = sns.color_palette(PALETTE_NAME, n_colors=len(models))
     return {m: c for m, c in zip(models, colors)}
@@ -41,6 +40,7 @@ def load_data():
     for f in csv_files:
         try:
             temp_df = pd.read_csv(f)
+            temp_df["__source_file"] = os.path.basename(f)
             df_list.append(temp_df)
         except Exception as e:
             print(f"⚠️ Could not read {f}: {e}")
@@ -50,13 +50,14 @@ def load_data():
 
     full_df = pd.concat(df_list, ignore_index=True)
 
-    # Enforce Complexity Order
-    complexity_order = ["Easy", "Medium", "Hard", "Extra Hard"]
-    full_df["complexity"] = pd.Categorical(
-        full_df["complexity"],
-        categories=complexity_order,
-        ordered=True
-    )
+    # Enforce Complexity Order (if exists)
+    if "complexity" in full_df.columns:
+        complexity_order = ["Easy", "Medium", "Hard", "Extra Hard"]
+        full_df["complexity"] = pd.Categorical(
+            full_df["complexity"],
+            categories=complexity_order,
+            ordered=True
+        )
 
     return full_df
 
@@ -67,6 +68,10 @@ def print_header(title):
 
 def analyze_difficulty_distribution(df):
     print_header("1. COMPLEXITY DISTRIBUTION (Count of Questions)")
+
+    if "complexity" not in df.columns:
+        print("⚠️ Column 'complexity' not found.")
+        return
 
     dist = df.groupby(["dataset", "complexity"], observed=False).size().unstack(fill_value=0)
     dist["Total"] = dist.sum(axis=1)
@@ -81,20 +86,29 @@ def analyze_performance(df):
         "is_correct": "mean",
         "pred_exec_success_sqlite": "mean",
         "pred_exec_success_pg": "mean",
-        "generation_time": "mean",
+        "generation_time": ["mean", "median"],
         "question_id": "count"
-    }).rename(columns={"question_id": "samples"})
+    })
 
-    metrics["Accuracy %"] = (metrics["is_correct"] * 100).round(2)
-    metrics["SQLite Exec %"] = (metrics["pred_exec_success_sqlite"] * 100).round(2)
-    metrics["Postgres Exec %"] = (metrics["pred_exec_success_pg"] * 100).round(2)
-    metrics["Avg Time (s)"] = metrics["generation_time"].round(4)
+    # flatten columns
+    metrics.columns = ["_".join(c).strip("_") for c in metrics.columns.to_flat_index()]
+    metrics = metrics.rename(columns={"question_id_count": "samples"})
 
-    display_cols = ["samples", "Accuracy %", "SQLite Exec %", "Postgres Exec %", "Avg Time (s)"]
+    metrics["Accuracy %"] = (metrics["is_correct_mean"] * 100).round(2)
+    metrics["SQLite Exec %"] = (metrics["pred_exec_success_sqlite_mean"] * 100).round(2)
+    metrics["Postgres Exec %"] = (metrics["pred_exec_success_pg_mean"] * 100).round(2)
+    metrics["Avg Time (s)"] = metrics["generation_time_mean"].round(4)
+    metrics["Median Time (s)"] = metrics["generation_time_median"].round(4)
+
+    display_cols = ["samples", "Accuracy %", "SQLite Exec %", "Postgres Exec %", "Avg Time (s)", "Median Time (s)"]
     print(metrics[display_cols].to_string())
 
 def analyze_dialect_robustness(df):
     print_header("3. DIALECT ROBUSTNESS (Postgres vs SQLite)")
+
+    if "pred_exec_success_sqlite" not in df.columns or "pred_exec_success_pg" not in df.columns:
+        print("⚠️ Missing exec columns to compare dialect robustness.")
+        return
 
     sqlite_valid = df[df["pred_exec_success_sqlite"] == True].copy()
 
@@ -131,97 +145,116 @@ def head_to_head_comparison(df):
         print(f"{model:<20} | {acc:<10} | {exe:<10} | {t:<10}")
 
 # ---------------------------
-# Resource metrics analysis (works even with mixed CSVs)
+# NEW: Resource metrics analysis for the NEW results format
 # ---------------------------
-RESOURCE_COLS = [
-    "total_runtime_s",
-    "peak_ram_rss_mb",
-    "peak_cpu_percent_process",
-    "peak_gpu_vram_allocated_mb",
-    "peak_gpu_vram_reserved_mb",
-    "cpu_ram_available",
-    "gpu_available",
+RESOURCE_COLS_NEW = [
+    "cpu_proc_percent",
+    "cpu_system_percent",
+    "ram_proc_rss_mb",
+    "ram_system_percent",
+    "gpu_util_percent",
+    "gpu_mem_used_mb",
+    "gpu_mem_total_mb",
+    "gpu_mem_percent",
 ]
 
-def _resource_subset(df: pd.DataFrame) -> pd.DataFrame:
+def _resource_subset_new(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Returns only rows that contain resource metrics.
-    This fixes the case where results_dir has mixed CSVs (old ones without resource cols).
+    Keep only rows that contain the new per-question resource metrics.
+    Works even if results_dir has mixed CSVs (older ones without these cols).
     """
-    # If the columns don't exist at all, return empty
-    for c in ["model"] + RESOURCE_COLS:
-        if c not in df.columns:
-            return df.iloc[0:0].copy()
+    needed = ["model", "generation_time"] + RESOURCE_COLS_NEW
+    if not set(needed).issubset(set(df.columns)):
+        return df.iloc[0:0].copy()
 
     sub = df.copy()
-
-    # Ensure numeric where possible
-    for c in RESOURCE_COLS:
+    for c in RESOURCE_COLS_NEW + ["generation_time"]:
         sub[c] = pd.to_numeric(sub[c], errors="coerce")
 
-    # Keep only rows where runtime exists (means the row came from a run with Option B)
-    sub = sub[sub["total_runtime_s"].notna()]
+    # keep rows that actually have metrics (cpu_proc_percent is the best indicator)
+    sub = sub[sub["cpu_proc_percent"].notna()]
     return sub
 
 def analyze_resource_metrics(df):
-    print_header("5. RESOURCE METRICS (CPU/RAM/GPU)")
+    print_header("5. RESOURCE METRICS (CPU/RAM/GPU) — NEW FORMAT")
 
-    rdf = _resource_subset(df)
+    rdf = _resource_subset_new(df)
     if rdf.empty:
-        print("⚠️ No resource metrics found in the loaded CSVs.")
-        print("Tip: Keep the new Option-B CSVs in results/, or delete the old CSVs to avoid mixing.")
+        print("⚠️ No NEW-format resource metrics found in loaded CSVs.")
+        print("Tip: Ensure your results CSVs were generated with the updated run_experiment.py that logs CPU/RAM/GPU.")
         return
 
-    res = rdf.groupby("model").agg({
-        "total_runtime_s": "max",
-        "peak_ram_rss_mb": "max",
-        "peak_cpu_percent_process": "max",
-        "peak_gpu_vram_allocated_mb": "max",
-        "peak_gpu_vram_reserved_mb": "max",
-        "cpu_ram_available": "max",
-        "gpu_available": "max",
-        "question_id": "count" if "question_id" in rdf.columns else "size"
-    }).rename(columns={"question_id": "samples"})
+    def p95(x): return x.quantile(0.95)
 
-    res["total_runtime_s"] = res["total_runtime_s"].round(2)
-    res["peak_ram_rss_mb"] = res["peak_ram_rss_mb"].round(2)
-    res["peak_cpu_percent_process"] = res["peak_cpu_percent_process"].round(1)
-    res["peak_gpu_vram_allocated_mb"] = res["peak_gpu_vram_allocated_mb"].round(2)
-    res["peak_gpu_vram_reserved_mb"] = res["peak_gpu_vram_reserved_mb"].round(2)
+    res = rdf.groupby("model").agg(
+        samples=("question_id", "count") if "question_id" in rdf.columns else ("model", "size"),
+
+        # latency
+        avg_time_s=("generation_time", "mean"),
+        p95_time_s=("generation_time", p95),
+
+        # CPU
+        avg_cpu_proc_percent=("cpu_proc_percent", "mean"),
+        p95_cpu_proc_percent=("cpu_proc_percent", p95),
+        avg_cpu_system_percent=("cpu_system_percent", "mean"),
+
+        # RAM
+        avg_ram_rss_mb=("ram_proc_rss_mb", "mean"),
+        peak_ram_rss_mb=("ram_proc_rss_mb", "max"),
+        avg_ram_system_percent=("ram_system_percent", "mean"),
+
+        # GPU (may be NaN if no NVIDIA GPU)
+        avg_gpu_util_percent=("gpu_util_percent", "mean"),
+        p95_gpu_util_percent=("gpu_util_percent", p95),
+        peak_gpu_mem_used_mb=("gpu_mem_used_mb", "max"),
+        gpu_mem_total_mb=("gpu_mem_total_mb", "max"),
+        peak_gpu_mem_percent=("gpu_mem_percent", "max"),
+    )
+
+    # rounding
+    round_cols = {
+        "avg_time_s": 4, "p95_time_s": 4,
+        "avg_cpu_proc_percent": 2, "p95_cpu_proc_percent": 2, "avg_cpu_system_percent": 2,
+        "avg_ram_rss_mb": 2, "peak_ram_rss_mb": 2, "avg_ram_system_percent": 2,
+        "avg_gpu_util_percent": 2, "p95_gpu_util_percent": 2,
+        "peak_gpu_mem_used_mb": 2, "gpu_mem_total_mb": 2, "peak_gpu_mem_percent": 2,
+    }
+    for c, nd in round_cols.items():
+        if c in res.columns:
+            res[c] = res[c].round(nd)
 
     cols = [
         "samples",
-        "total_runtime_s",
-        "peak_ram_rss_mb",
-        "peak_cpu_percent_process",
-        "peak_gpu_vram_allocated_mb",
-        "peak_gpu_vram_reserved_mb",
-        "cpu_ram_available",
-        "gpu_available",
+        "avg_time_s", "p95_time_s",
+        "avg_cpu_proc_percent", "p95_cpu_proc_percent", "avg_cpu_system_percent",
+        "avg_ram_rss_mb", "peak_ram_rss_mb", "avg_ram_system_percent",
+        "avg_gpu_util_percent", "p95_gpu_util_percent",
+        "peak_gpu_mem_used_mb", "gpu_mem_total_mb", "peak_gpu_mem_percent",
     ]
+    cols = [c for c in cols if c in res.columns]
     print(res[cols].to_string())
 
 def generate_resource_charts(df):
-    needed = {"model", "peak_ram_rss_mb", "peak_gpu_vram_allocated_mb", "total_runtime_s"}
-    if not needed.issubset(set(df.columns)):
-        return
-
-    rdf = _resource_subset(df)
+    rdf = _resource_subset_new(df)
     if rdf.empty:
         return
 
+    sns.set_theme(style="whitegrid")
     model_palette = get_model_palette(rdf)
 
-    res = rdf.groupby("model").agg({
-        "peak_ram_rss_mb": "max",
-        "peak_gpu_vram_allocated_mb": "max",
-        "total_runtime_s": "max",
-    }).reset_index()
+    # aggregate per model for plotting
+    agg = rdf.groupby("model").agg(
+        peak_ram_rss_mb=("ram_proc_rss_mb", "max"),
+        avg_cpu_proc_percent=("cpu_proc_percent", "mean"),
+        peak_gpu_mem_used_mb=("gpu_mem_used_mb", "max"),
+        avg_gpu_util_percent=("gpu_util_percent", "mean"),
+        p95_time_s=("generation_time", lambda x: x.quantile(0.95)),
+    ).reset_index()
 
-    # RAM chart
+    # 1) Peak RAM chart
     plt.figure(figsize=(8, 5))
-    sns.barplot(data=res, x="model", y="peak_ram_rss_mb", hue="model", palette=model_palette, legend=False)
-    plt.title("Peak RAM (RSS) by Model")
+    sns.barplot(data=agg, x="model", y="peak_ram_rss_mb", hue="model", palette=model_palette, legend=False)
+    plt.title("Peak RAM (Process RSS) by Model")
     plt.ylabel("Peak RAM (MB)")
     plt.xlabel("Model")
     out_path = os.path.join(results_dir, "peak_ram_by_model.png")
@@ -230,36 +263,64 @@ def generate_resource_charts(df):
     plt.close()
     print(f"\n📊 Resource chart saved to: {out_path}")
 
-    # GPU chart (only if there are non-null values)
-    if res["peak_gpu_vram_allocated_mb"].notna().any():
-        plt.figure(figsize=(8, 5))
-        sns.barplot(data=res, x="model", y="peak_gpu_vram_allocated_mb", hue="model", palette=model_palette, legend=False)
-        plt.title("Peak GPU VRAM Allocated by Model")
-        plt.ylabel("Peak GPU VRAM Allocated (MB)")
-        plt.xlabel("Model")
-        out_path = os.path.join(results_dir, "peak_gpu_vram_by_model.png")
-        plt.tight_layout()
-        plt.savefig(out_path)
-        plt.close()
-        print(f"📊 Resource chart saved to: {out_path}")
-
-    # Runtime chart
+    # 2) Avg CPU chart
     plt.figure(figsize=(8, 5))
-    sns.barplot(data=res, x="model", y="total_runtime_s", hue="model", palette=model_palette, legend=False)
-    plt.title("Total Runtime by Model")
-    plt.ylabel("Runtime (s)")
+    sns.barplot(data=agg, x="model", y="avg_cpu_proc_percent", hue="model", palette=model_palette, legend=False)
+    plt.title("Average CPU (Process %) by Model")
+    plt.ylabel("Avg CPU (%)")
     plt.xlabel("Model")
-    out_path = os.path.join(results_dir, "runtime_by_model.png")
+    out_path = os.path.join(results_dir, "avg_cpu_by_model.png")
     plt.tight_layout()
     plt.savefig(out_path)
     plt.close()
     print(f"📊 Resource chart saved to: {out_path}")
 
+    # 3) p95 latency chart
+    plt.figure(figsize=(8, 5))
+    sns.barplot(data=agg, x="model", y="p95_time_s", hue="model", palette=model_palette, legend=False)
+    plt.title("p95 Generation Time by Model")
+    plt.ylabel("p95 time (s)")
+    plt.xlabel("Model")
+    out_path = os.path.join(results_dir, "p95_time_by_model.png")
+    plt.tight_layout()
+    plt.savefig(out_path)
+    plt.close()
+    print(f"📊 Resource chart saved to: {out_path}")
+
+    # 4) GPU charts only if any GPU data exists
+    if agg["peak_gpu_mem_used_mb"].notna().any():
+        plt.figure(figsize=(8, 5))
+        sns.barplot(data=agg, x="model", y="peak_gpu_mem_used_mb", hue="model", palette=model_palette, legend=False)
+        plt.title("Peak GPU VRAM Used by Model")
+        plt.ylabel("Peak VRAM Used (MB)")
+        plt.xlabel("Model")
+        out_path = os.path.join(results_dir, "peak_gpu_vram_used_by_model.png")
+        plt.tight_layout()
+        plt.savefig(out_path)
+        plt.close()
+        print(f"📊 Resource chart saved to: {out_path}")
+
+    if agg["avg_gpu_util_percent"].notna().any():
+        plt.figure(figsize=(8, 5))
+        sns.barplot(data=agg, x="model", y="avg_gpu_util_percent", hue="model", palette=model_palette, legend=False)
+        plt.title("Average GPU Utilization by Model")
+        plt.ylabel("Avg GPU Util (%)")
+        plt.xlabel("Model")
+        out_path = os.path.join(results_dir, "avg_gpu_util_by_model.png")
+        plt.tight_layout()
+        plt.savefig(out_path)
+        plt.close()
+        print(f"📊 Resource chart saved to: {out_path}")
+
 def generate_charts(df):
-    """Generates a chart image if libraries are available"""
+    """Accuracy by complexity chart."""
     try:
         sns.set_theme(style="whitegrid")
         model_palette = get_model_palette(df)
+
+        if "complexity" not in df.columns:
+            print("\n⚠️  No 'complexity' column found. Skipping accuracy-by-complexity chart.")
+            return
 
         plt.figure(figsize=(10, 6))
 
@@ -286,6 +347,7 @@ def generate_charts(df):
 if __name__ == "__main__":
     df = load_data()
     print(f"Loaded {len(df)} total records from {results_dir}")
+    print(f"CSV sources: {sorted(df['__source_file'].dropna().unique().tolist())}")
 
     analyze_difficulty_distribution(df)
     analyze_performance(df)
