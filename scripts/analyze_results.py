@@ -230,40 +230,6 @@ def generate_plots(df_comp, df_run, df_sum, df_rob):
         save_plot(f"plot_{ds}_complexity.png")
 
 # -------------------------------------------------------------------
-# 4. RESOURCE ANALYSIS (Optional)
-# -------------------------------------------------------------------
-def analyze_resources(df):
-    # Check if resource cols exist (from updated run_experiment.py)
-    cols_needed = ["total_runtime_s", "peak_ram_rss_mb", "peak_gpu_vram_allocated_mb"]
-    if not all(col in df.columns for col in cols_needed):
-        print("\n⚠️  Resource columns missing. Skipping resource plots.")
-        return
-
-    # Filter for rows that actually have runtime data (last row of a run usually)
-    res_df = df.dropna(subset=cols_needed).groupby("model", observed=False).agg({
-        "total_runtime_s": "max",
-        "peak_ram_rss_mb": "max",
-        "peak_gpu_vram_allocated_mb": "max"
-    }).reset_index()
-
-    if res_df.empty:
-        return
-
-    print("\n" + "="*40)
-    print("🔋 RESOURCE ANALYSIS")
-    print("="*40)
-    palette = get_model_palette(res_df)
-
-    # Plot Total Runtime
-    plt.figure(figsize=(7, 5))
-    sns.barplot(data=res_df, x="model", y="total_runtime_s", hue="model", palette=palette, legend=False)
-    plt.title("Total Benchmark Runtime", fontsize=14, weight='bold')
-    plt.ylabel("Time (seconds)")
-    save_plot("total_runtime_comparison.png")
-
-    print(res_df.to_string())
-
-# -------------------------------------------------------------------
 # MAIN EXECUTION
 # -------------------------------------------------------------------
 if __name__ == "__main__":
@@ -275,8 +241,5 @@ if __name__ == "__main__":
 
     # 3. Generate Charts
     generate_plots(df_comp, df_run, df_sum, df_rob)
-
-    # 4. Resource Analysis
-    analyze_resources(full_df)
 
     print(f"\n✅ DONE! Check the '{OUT_DIR}' folder for all reports and images.")
