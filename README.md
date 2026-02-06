@@ -1,5 +1,15 @@
 # Comparison between text-to-SQL methods
 
+## Team Information
+
+| Name                  | Team ID | Student ID |
+|-----------------------|---------|------------|
+| Simranjit Singh Dulku | 22      | 03121105   |
+| Fotis Monanteros      | 22      | 03121912   |
+| Athanasios Markou     | 22      | 03123618   |
+
+---
+
 This repository contains the official implementation for the project **"Comparison between text-to-SQL methods"**
 
 We present a unified evaluation framework to benchmark compact LLMs (**Qwen2.5-1.5B** and **TinyLlama-1.1B**) on the Text-to-SQL task. The framework emphasizes resource-constrained environments and measures not just accuracy, but also generation latency and cross-dialect executability.
