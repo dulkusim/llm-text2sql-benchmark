@@ -1,6 +1,6 @@
-# Evaluating Small Language Models (SLMs) for Text-to-SQL
+# Comparison between text-to-SQL methods
 
-This repository contains the official implementation for the project **"Evaluating Small Language Models for Text-to-SQL: Performance, Latency, and Dialect Robustness."**
+This repository contains the official implementation for the project **"Comparison between text-to-SQL methods"**
 
 We present a unified evaluation framework to benchmark compact LLMs (**Qwen2.5-1.5B** and **TinyLlama-1.1B**) on the Text-to-SQL task. The framework emphasizes resource-constrained environments and measures not just accuracy, but also generation latency and cross-dialect executability.
 
@@ -9,9 +9,9 @@ We present a unified evaluation framework to benchmark compact LLMs (**Qwen2.5-1
 ## Features
 
 - **Dual-Database Support:** Automatically mirrors datasets between **SQLite** (for schema introspection) and **PostgreSQL** (for production-grade execution).
-- **Cross-Dialect Robustness:** Handles case-sensitivity normalization to ensure queries work on strict RDBMS engines.
+- **Cross-Dialect Robustness:** Ensure queries work on different RDBMS engines.
 - **Multi-Dataset Support:** Integrated with **Spider**, **ATIS**, and **Geography** datasets.
-- **Modular Agent:** Flexible wrapper for testing different SLMs.
+- **Modular Agent:** Flexible wrapper for testing different LLMs.
 - **Verification Pipeline:** Automated tools to verify data consistency across database engines.
 
 ---
@@ -21,8 +21,7 @@ We present a unified evaluation framework to benchmark compact LLMs (**Qwen2.5-1
 Before running the project, ensure you have the following installed:
 
 - **Python 3.10+**
-- **Docker & Docker Compose** (for the PostgreSQL container)
-- **Git**
+- **Docker & Docker Compose** (for running Postgres locally, otherwise the Colab Notebook is sufficient)
 
 ---
 
@@ -112,7 +111,7 @@ This project requires loading external datasets (Spider, ATIS, Geography) into t
 
 ### 1. Load Datasets
 
-This script reads raw data, normalizes table names (lowercase), and populates both SQLite and PostgreSQL.
+This script reads raw data, synchronizes schemas, and populates both SQLite and PostgreSQL.
 
 ```bash
 python -m db.load_dataset
@@ -173,7 +172,7 @@ To prevent GPU memory issues (OOM) on 16GB VRAM cards (e.g., T4), run models one
 
 ```bash
 # Run TinyLlama (1.1B)
-python experiments/run_experiment.py \
+python experiments/run_experiment_metrics.py \
   --model tinylama \
   --datasets spider atis geography custom \
   --n 100 \
@@ -188,7 +187,7 @@ python experiments/run_experiment.py \
 
 ```bash
 # Run Qwen (1.5B)
-python experiments/run_experiment.py \
+python experiments/run_experiment_metrics.py \
   --model qwen \
   --datasets spider atis geography custom \
   --n 100 \
@@ -211,6 +210,10 @@ Generate summary statistics and charts comparing model performance.
 python scripts/analyze_results.py
 ```
 
+```bash
+python scripts/resource_metrics_analyze.py
+```
+
 ---
 
 ## Project Structure
@@ -225,18 +228,23 @@ python scripts/analyze_results.py
 - **`db/`** — Database management and configuration  
   - `config.py`: Database connection settings (credentials, hosts).  
   - `init_sqlite.py`: Script to initialize the local SQLite environment.  
-  - `load_dataset.py`: ETL script to normalize and migrate data from SQLite to PostgreSQL.  
+  - `load_dataset.py`: ETL script to migrate data from SQLite to PostgreSQL.  
   - `verify_data.py`: Utility to compare row counts and validate data integrity between engines.  
   - `docker-compose.yml`: Configuration for the PostgreSQL Docker container.
 
 - **`experiments/`** — Core benchmarking scripts  
   - `run_experiment.py`: Main execution loop that runs the models, executes SQL on both databases, and logs performance metrics.
+  - `run_experiment_metrics.py`: Execution loop that runs the models, executes SQL on both databases, and logs performance metrics including resource metrics.
 
 - **`results/`** — Experiment artifacts  
-  - Stores generated CSV logs (`results_TinyLlama.csv`, `results_Qwen.csv`) and produced charts.
+  - Stores generated CSV logs (`results_tinylama.csv`, `results_qwen.csv`).
 
+- **`plots and diagrams/`** — Contains all our generated plots and stats  
+  - Stores generated plots and CSV with stats.
+    
 - **`scripts/`** — Analysis tools  
   - `analyze_results.py`: Script to process CSV logs and generate accuracy and latency visualizations.
+  - `resource_metrics_analyze.py`: Script to process CSV logs and generate latency and resource visualizations.
   - `build_custom_db.py`: Utility to construct custom database schemas for testing
   - `generate_questions.py`: Script to procedurally generate synthetic SQL-question pairs.
 
