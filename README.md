@@ -262,40 +262,37 @@ python scripts/resource_metrics_analyze.py
 
 ## Project Structure
 
-- **`agent/`** — Model integration and inference logic  
-  - `agent.py`: Diagnostic script to verify database connectivity.  
-  - `model_wrappers.py`: Custom wrapper classes (`TinyLlamaWrapper`, `Qwen2Wrapper`) for handling model inference and tokenization.
-
-- **`data/`** — Dataset artifacts  
-  - Contains raw `.json` files (Spider, ATIS, Geography) and source `.sqlite` database files.
-
-- **`db/`** — Database management and configuration  
-  - `config.py`: Database connection settings (credentials, hosts).  
-  - `init_sqlite.py`: Script to initialize the local SQLite environment.  
-  - `load_dataset.py`: ETL script to migrate data from SQLite to PostgreSQL.  
-  - `verify_data.py`: Utility to compare row counts and validate data integrity between engines.  
-  - `docker-compose.yml`: Configuration for the PostgreSQL Docker container.
-
-- **`experiments/`** — Core benchmarking scripts  
-  - `run_experiment.py`: Main execution loop that runs the models, executes SQL on both databases, and logs performance metrics.
-  - `run_experiment_metrics.py`: Execution loop that runs the models, executes SQL on both databases, and logs performance metrics including resource metrics.
-
-- **`results/`** — Experiment artifacts  
-  - Stores generated CSV logs (`results_tinylama.csv`, `results_qwen.csv`).
-
-- **`plots and diagrams/`** — Contains all our generated plots and stats  
-  - Stores generated plots and CSV with stats.
-    
-- **`scripts/`** — Analysis tools  
-  - `analyze_results.py`: Script to process CSV logs and generate accuracy and latency visualizations.
-  - `resource_metrics_analyze.py`: Script to process CSV logs and generate latency and resource visualizations.
-  - `build_custom_db.py`: Utility to construct custom database schemas for testing
-  - `generate_questions.py`: Script to procedurally generate synthetic SQL-question pairs.
-
-- **`utils/`** — Helper libraries  
-  - `data_utils.py`: Functions for loading prompts and dataset metadata.  
-  - `sql_utils.py`: Utilities for SQL parsing, cleaning, and schema retrieval.
-
+```
+llm-text2sql-benchmark/
+├── agent/
+│   ├── agent.py                  # Diagnostic script to verify database connectivity
+│   └── model_wrappers.py         # LLM wrapper classes (TinyLlamaWrapper, Qwen2Wrapper)
+├── data/                         # Raw .json files and .sqlite databases (see Data section)
+├── db/
+│   ├── config.py                 # Database connection settings
+│   ├── docker-compose.yml        # PostgreSQL Docker configuration
+│   ├── init_sqlite.py            # SQLite environment initialisation
+│   ├── load_dataset.py           # ETL: SQLite → PostgreSQL migration
+│   └── verify_data.py            # Row-count validation across engines
+├── experiments/
+│   ├── run_experiment.py         # Core benchmarking loop
+│   └── run_experiment_metrics.py # Benchmarking loop with resource profiling
+├── notebooks/
+│   └── Text2SQL_Project.ipynb    # Google Colab execution notebook
+├── plots/                        # Generated charts and summary CSVs
+├── results/                      # CSV logs per model per dataset
+├── scripts/
+│   ├── analyze_results.py        # Accuracy and latency visualisations
+│   ├── resource_metrics_analyze.py # Resource profiling visualisations
+│   ├── build_custom_db.py        # Custom database schema builder
+│   └── generate_questions.py     # Synthetic NL-SQL pair generator
+├── utils/
+│   ├── data_utils.py             # Dataset loading and prompt utilities
+│   └── sql_utils.py              # SQL parsing, cleaning, schema retrieval
+├── Comparison_between_text-to-SQL_methods.pdf
+├── requirements.txt
+└── README.md
+```
 
 ---
 
