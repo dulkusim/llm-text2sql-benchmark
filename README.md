@@ -1,3 +1,6 @@
+![Python](https://img.shields.io/badge/Python-3.10+-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Docker](https://img.shields.io/badge/Docker-supported-blue)
 # Comparison between text-to-SQL methods
 
 ## Team Information (Team ID: 22)
