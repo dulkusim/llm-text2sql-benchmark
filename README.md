@@ -3,7 +3,7 @@
 ![Docker](https://img.shields.io/badge/Docker-supported-blue)
 # Comparison between text-to-SQL methods
 
-## Team Information (Team ID: 22)
+## Contributors
 
 | Name                  | Student ID |
 |-----------------------|------------|
@@ -17,14 +17,45 @@ This repository contains the official implementation for the project **"Comparis
 
 We present a unified evaluation framework to benchmark compact LLMs (**Qwen2.5-1.5B** and **TinyLlama-1.1B**) on the Text-to-SQL task. The framework emphasizes resource-constrained environments and measures not just accuracy, but also generation latency and cross-dialect executability.
 
+📄 [Read the paper](./Comparison_between_text-to-SQL_methods.pdf)
+
+---
+
+## Results
+
+### Overall Performance
+
+| Model | Accuracy | Exec. Rate | Avg. Latency (Spider) | Total Runtime |
+|---|---|---|---|---|
+| Qwen2.5-1.5B | **28.45%** | **57.05%** | **2.69s** | **786 min** |
+| TinyLlama-1.1B | 8.60% | 31.12% | 4.57s | 1,125 min |
+
+> Qwen2.5-1.5B achieves a **3.3× accuracy improvement** and is **~40% faster** despite having more parameters — driven by superior instruction tuning and output conciseness.
+
+### Accuracy by Dataset
+
+| Model | Spider | ATIS | Geography | Custom |
+|---|---|---|---|---|
+| Qwen2.5-1.5B | 43.26% | 3.71% | 11.97% | 44.00% |
+| TinyLlama-1.1B | 13.60% | 0.17% | 3.53% | 14.00% |
+
+### Spider Accuracy by Complexity
+
+| Model | Easy | Medium | Hard | Extra Hard |
+|---|---|---|---|---|
+| Qwen2.5-1.5B | 57.41% | 38.31% | 21.19% | 33.82% |
+| TinyLlama-1.1B | 17.02% | 11.62% | 11.04% | 12.18% |
+
+![Model Accuracy by Query Complexity](plots/benchmark_chart.png)
+
 ---
 
 ## Features
 
 - **Dual-Database Support:** Automatically mirrors datasets between **SQLite** (for schema introspection) and **PostgreSQL** (for production-grade execution).
-- **Cross-Dialect Robustness:** Ensure queries work on different RDBMS engines.
-- **Multi-Dataset Support:** Integrated with **Spider**, **ATIS**, and **Geography** datasets.
-- **Modular Agent:** Flexible wrapper for testing different LLMs.
+- **Cross-Dialect Robustness:** Ensures queries work across different RDBMS engines — Qwen2.5 achieved 31.6% PostgreSQL compatibility vs TinyLlama's 24.2%.
+- **Multi-Dataset Support:** Integrated with **Spider**, **ATIS**, and **Geography** benchmarks plus a custom dataset (15,950 queries total).
+- **Modular Agent:** Flexible wrapper architecture for testing different LLMs with a unified inference interface.
 - **Verification Pipeline:** Automated tools to verify data consistency across database engines.
 
 ---
@@ -268,9 +299,12 @@ python scripts/resource_metrics_analyze.py
 
 ---
 
-## Data 
-Datasets exceed GitHub's file size limits (~2GB total). Download from the link below and place in data/
-https://drive.google.com/drive/folders/1d2gAFFK56cWwWES6HgkzIPURLP5yP7yU?usp=sharing
+## Data
+
+Datasets exceed GitHub's file size limits (~2GB total). Download from the link below and place the contents in `data/`.
+
+📁 [Download datasets from Google Drive](https://drive.google.com/drive/folders/1d2gAFFK56cWwWES6HgkzIPURLP5yP7yU?usp=sharing)
+
 ---
 
 ## License
