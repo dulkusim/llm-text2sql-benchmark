@@ -269,9 +269,8 @@ python scripts/resource_metrics_analyze.py
 ---
 
 ## Data 
-Due to the large data size they will not be commited on GitHub. Below is the shared link on Google Drive.
+Datasets exceed GitHub's file size limits (~2GB total). Download from the link below and place in data/
 https://drive.google.com/drive/folders/1d2gAFFK56cWwWES6HgkzIPURLP5yP7yU?usp=sharing
-
 ---
 
 ## License
